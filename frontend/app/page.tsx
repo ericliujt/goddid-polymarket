@@ -1,28 +1,62 @@
 'use client';
 
-import { WalletConnection } from '@/components/wallet-connection';
-import { SessionSigners } from '@/components/session-signers';
-import { Withdraw } from '@/components/withdraw';
+import { useState, useEffect } from 'react';
+import { Navbar } from '@/components/navbar';
+import { LendingSection } from '@/components/lending-section';
+import { StakingSection } from '@/components/staking-section';
+import { DemoSection } from '@/components/demo-section';
+import { MeshGradient } from '@paper-design/shaders-react';
 
 export default function Home() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-4xl flex-col items-center justify-center py-16 px-8">
-        <div className="w-full space-y-8">
-          <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-black dark:text-zinc-50 mb-4">
-              Privy Wallet Integration
-            </h1>
-            <p className="text-lg text-zinc-600 dark:text-zinc-400">
-              Connect your browser wallet and manage session signers
-            </p>
-          </div>
+  const [activeSection, setActiveSection] = useState<'lending' | 'staking' | 'demo'>('demo');
+  const [dimensions, setDimensions] = useState({ width: 1920, height: 1080 });
 
-          <WalletConnection />
-          <SessionSigners />
-          <Withdraw />
+  useEffect(() => {
+    const updateDimensions = () => {
+      setDimensions({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    };
+
+    updateDimensions();
+    window.addEventListener('resize', updateDimensions);
+    return () => window.removeEventListener('resize', updateDimensions);
+  }, []);
+
+  return (
+    <div className="min-h-screen relative overflow-hidden">
+      {/* MeshGradient Background */}
+      <div className="fixed inset-0 z-0 w-full h-full">
+        <div className="w-full h-full">
+          <MeshGradient
+            width={dimensions.width}
+            height={dimensions.height}
+            colors={["#e0eaff", "#121eca", "#f75092", "#9f50d3"]}
+            distortion={0.8}
+            swirl={0.13}
+            grainMixer={0}
+            grainOverlay={0}
+            speed={0.48}
+          />
         </div>
-      </main>
+      </div>
+
+      {/* Content */}
+      <div className="relative z-10 min-h-screen flex flex-col">
+        {/* Navbar */}
+        <Navbar 
+          activeSection={activeSection} 
+          onSectionChange={setActiveSection} 
+        />
+
+        {/* Main Content */}
+        <main className="flex-1 py-12 px-4 sm:px-6 lg:px-8">
+          {activeSection === 'lending' && <LendingSection />}
+          {activeSection === 'staking' && <StakingSection />}
+          {activeSection === 'demo' && <DemoSection />}
+        </main>
+      </div>
     </div>
   );
 }
