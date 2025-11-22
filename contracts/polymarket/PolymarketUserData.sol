@@ -4,18 +4,20 @@ pragma solidity ^0.8.25;
 import { ContractRegistry } from "@flarenetwork/flare-periphery-contracts/coston2/ContractRegistry.sol";
 import { IWeb2Json } from "@flarenetwork/flare-periphery-contracts/coston2/IWeb2Json.sol";
 
-struct PolymarketUserData {
-    string name;
+struct Position {
     int256 realizedPnl;
-    int256 value;
     int256 totalBought;
     string asset;
 }
 
+struct PolymarketUserData {
+    string name;
+    int256 value;
+    Position[] positions;
+}
+
 struct ClosedPositionsDTO {
-    int256 realizedPnl;
-    int256 totalBought;
-    string asset;
+    Position[] positions;
 }
 
 struct ValueDTO {
@@ -59,14 +61,16 @@ contract PolymarketUserDataStore {
         );
 
         require(!dataStored, "Data already stored");
+        require(closedPositions.positions.length > 0, "No positions found");
 
-        userData = PolymarketUserData({
-            name: activityData.name,
-            realizedPnl: closedPositions.realizedPnl,
-            value: valueData.value,
-            totalBought: closedPositions.totalBought,
-            asset: closedPositions.asset
-        });
+        // Initialize userData with name and value
+        userData.name = activityData.name;
+        userData.value = valueData.value;
+        
+        // Copy positions array (Solidity doesn't support direct assignment of dynamic arrays)
+        for (uint256 i = 0; i < closedPositions.positions.length; i++) {
+            userData.positions.push(closedPositions.positions[i]);
+        }
 
         dataStored = true;
     }
@@ -77,6 +81,18 @@ contract PolymarketUserDataStore {
     }
 
     function abiSignatureHackClosedPositions(ClosedPositionsDTO calldata dto) public pure {}
+    function abiSignatureHackPosition(Position calldata position) public pure {}
+    
+    function getPositionCount() public view returns (uint256) {
+        require(dataStored, "No data stored yet");
+        return userData.positions.length;
+    }
+    
+    function getPosition(uint256 index) public view returns (Position memory) {
+        require(dataStored, "No data stored yet");
+        require(index < userData.positions.length, "Index out of bounds");
+        return userData.positions[index];
+    }
     function abiSignatureHackValue(ValueDTO calldata dto) public pure {}
     function abiSignatureHackActivity(ActivityDTO calldata dto) public pure {}
 

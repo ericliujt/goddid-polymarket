@@ -26,12 +26,13 @@ const valueQueryParams = `{"user": "${userAddress}"}`;
 const activityQueryParams = `{"user": "${userAddress}", "limit": "1"}`;
 
 // Simple jq queries (convert floats to integers for int256 ABI encoding)
-const closedPositionsJq = `. | .[0] | {realizedPnl: (.realizedPnl | floor), totalBought: (.totalBought | floor), asset: (.asset | tostring)}`;
+// Extract all positions (up to 10) as an array
+const closedPositionsJq = `. | map({realizedPnl: (.realizedPnl | floor), totalBought: (.totalBought | floor), asset: (.asset | tostring)}) | {positions: .}`;
 const valueJq = `. | .[0] | {value: (.value | floor)}`;
 const activityJq = `. | .[0] | {name: .name}`;
 
-// ABI Signatures
-const closedPositionsAbiSignature = `{"components": [{"internalType": "int256", "name": "realizedPnl", "type": "int256"},{"internalType": "int256", "name": "totalBought", "type": "int256"},{"internalType": "string", "name": "asset", "type": "string"}],"name": "task","type": "tuple"}`;
+// ABI Signatures - positions is an array of tuples
+const closedPositionsAbiSignature = `{"components": [{"components": [{"internalType": "int256", "name": "realizedPnl", "type": "int256"},{"internalType": "int256", "name": "totalBought", "type": "int256"},{"internalType": "string", "name": "asset", "type": "string"}],"internalType": "tuple[]", "name": "positions", "type": "tuple[]"}],"name": "task","type": "tuple"}`;
 const valueAbiSignature = `{"components": [{"internalType": "int256", "name": "value", "type": "int256"}],"name": "task","type": "tuple"}`;
 const activityAbiSignature = `{"components": [{"internalType": "string", "name": "name", "type": "string"}],"name": "task","type": "tuple"}`;
 
@@ -133,13 +134,23 @@ async function interactWithContract(
     console.log("Transaction:", transaction.tx, "\n");
 
     const storedData = await userDataStore.getUserData();
+    const positionCount = await userDataStore.getPositionCount();
+    
     console.log("Stored User Data:\n", {
         name: storedData.name,
-        realizedPnl: storedData.realizedPnl.toString(),
         value: storedData.value.toString(),
-        totalBought: storedData.totalBought.toString(),
-        asset: storedData.asset,
+        positionCount: positionCount.toString(),
     }, "\n");
+    
+    console.log("=== All Positions ===\n");
+    for (let i = 0; i < positionCount.toNumber(); i++) {
+        const position = await userDataStore.getPosition(i);
+        console.log(`Position ${i + 1}:`, {
+            realizedPnl: position.realizedPnl.toString(),
+            totalBought: position.totalBought.toString(),
+            asset: position.asset,
+        }, "\n");
+    }
 }
 
 // Timer utility
