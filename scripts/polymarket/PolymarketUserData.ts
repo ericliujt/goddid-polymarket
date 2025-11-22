@@ -67,7 +67,10 @@ async function prepareAttestationRequest(
 }
 
 async function retrieveDataAndProof(abiEncodedRequest: string, roundId: number) {
-    const url = `${COSTON2_DA_LAYER_URL}api/v1/fdc/proof-by-request-round-raw`;
+    // Ensure proper URL formatting with trailing slash
+    const baseUrl = COSTON2_DA_LAYER_URL?.endsWith('/') ? COSTON2_DA_LAYER_URL : `${COSTON2_DA_LAYER_URL}/`;
+    const url = `${baseUrl}api/v1/fdc/proof-by-request-round-raw`;
+    console.log("DA Layer URL:", url, "\n");
     return await retrieveDataAndProofBaseWithRetry(url, abiEncodedRequest, roundId);
 }
 
