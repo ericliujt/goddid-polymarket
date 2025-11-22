@@ -19,22 +19,27 @@ const userAddress = process.env.POLYMARKET_USER_ADDRESS || "0xb1d9476e5a5ba938b5
 const closedPositionsUrl = "https://data-api.polymarket.com/closed-positions";
 const valueUrl = "https://data-api.polymarket.com/value";
 const activityUrl = "https://data-api.polymarket.com/activity";
+const currentPositionsUrl = "https://data-api.polymarket.com/positions";
 
 // Query parameters
 const closedPositionsQueryParams = `{"user": "${userAddress}", "limit": "10"}`;
 const valueQueryParams = `{"user": "${userAddress}"}`;
 const activityQueryParams = `{"user": "${userAddress}", "limit": "1"}`;
+const currentPositionsQueryParams = `{"user": "${userAddress}", "limit": "3"}`;
 
 // Simple jq queries (convert floats to integers for int256 ABI encoding)
 // Extract all positions (up to 10) as an array
 const closedPositionsJq = `. | map({realizedPnl: (.realizedPnl | floor), totalBought: (.totalBought | floor), asset: (.asset | tostring)}) | {positions: .}`;
 const valueJq = `. | .[0] | {value: (.value | floor)}`;
 const activityJq = `. | .[0] | {name: .name}`;
+// Extract current positions (up to 3) with all required fields
+const currentPositionsJq = `. | map({size: (.size | floor), avgPrice: (.avgPrice | floor), initialValue: (.initialValue | floor), currentValue: (.currentValue | floor), cashPnl: (.cashPnl | floor), percentPnl: (.percentPnl | floor), totalBought: (.totalBought | floor), realizedPnl: (.realizedPnl | floor), percentRealizedPnl: (.percentRealizedPnl | floor), curPrice: (.curPrice | floor)}) | {positions: .}`;
 
 // ABI Signatures - positions is an array of tuples
 const closedPositionsAbiSignature = `{"components": [{"components": [{"internalType": "int256", "name": "realizedPnl", "type": "int256"},{"internalType": "int256", "name": "totalBought", "type": "int256"},{"internalType": "string", "name": "asset", "type": "string"}],"internalType": "tuple[]", "name": "positions", "type": "tuple[]"}],"name": "task","type": "tuple"}`;
 const valueAbiSignature = `{"components": [{"internalType": "int256", "name": "value", "type": "int256"}],"name": "task","type": "tuple"}`;
 const activityAbiSignature = `{"components": [{"internalType": "string", "name": "name", "type": "string"}],"name": "task","type": "tuple"}`;
+const currentPositionsAbiSignature = `{"components": [{"components": [{"internalType": "int256", "name": "size", "type": "int256"},{"internalType": "int256", "name": "avgPrice", "type": "int256"},{"internalType": "int256", "name": "initialValue", "type": "int256"},{"internalType": "int256", "name": "currentValue", "type": "int256"},{"internalType": "int256", "name": "cashPnl", "type": "int256"},{"internalType": "int256", "name": "percentPnl", "type": "int256"},{"internalType": "int256", "name": "totalBought", "type": "int256"},{"internalType": "int256", "name": "realizedPnl", "type": "int256"},{"internalType": "int256", "name": "percentRealizedPnl", "type": "int256"},{"internalType": "int256", "name": "curPrice", "type": "int256"}],"internalType": "tuple[]", "name": "positions", "type": "tuple[]"}],"name": "task","type": "tuple"}`;
 
 const httpMethod = "GET";
 const headers = "{}";
@@ -103,19 +108,22 @@ async function interactWithContract(
     userDataStore: PolymarketUserDataStoreInstance,
     closedPositionsProof: any,
     valueProof: any,
-    activityProof: any
+    activityProof: any,
+    currentPositionsProof: any
 ) {
-    // Decode all three proofs
+    // Decode all four proofs
     const IWeb2JsonVerification = await artifacts.require("IWeb2JsonVerification");
     const responseType = IWeb2JsonVerification._json.abi[0].inputs[0].components[1];
 
     const decodedClosedPositions = web3.eth.abi.decodeParameter(responseType, closedPositionsProof.response_hex);
     const decodedValue = web3.eth.abi.decodeParameter(responseType, valueProof.response_hex);
     const decodedActivity = web3.eth.abi.decodeParameter(responseType, activityProof.response_hex);
+    const decodedCurrentPositions = web3.eth.abi.decodeParameter(responseType, currentPositionsProof.response_hex);
 
     console.log("Decoded closed positions:", decodedClosedPositions, "\n");
     console.log("Decoded value:", decodedValue, "\n");
     console.log("Decoded activity:", decodedActivity, "\n");
+    console.log("Decoded current positions:", decodedCurrentPositions, "\n");
 
     const transaction = await userDataStore.addUserData(
         {
@@ -129,28 +137,58 @@ async function interactWithContract(
         {
             merkleProof: activityProof.proof,
             data: decodedActivity,
+        },
+        {
+            merkleProof: currentPositionsProof.proof,
+            data: decodedCurrentPositions,
         }
     );
     console.log("Transaction:", transaction.tx, "\n");
 
     const storedData = await userDataStore.getUserData();
-    const positionCount = await userDataStore.getPositionCount();
+    const closedPositionCount = await userDataStore.getClosedPositionCount();
+    const currentPositionCount = await userDataStore.getCurrentPositionCount();
     
-    console.log("Stored User Data:\n", {
-        name: storedData.name,
-        value: storedData.value.toString(),
-        positionCount: positionCount.toString(),
-    }, "\n");
+    // Build comprehensive JSON output
+    const output: any = {
+        user: {
+            name: storedData.name,
+            value: storedData.value.toString(),
+        },
+        closedPositions: [] as any[],
+        currentPositions: [] as any[],
+    };
     
-    console.log("=== All Positions ===\n");
-    for (let i = 0; i < positionCount.toNumber(); i++) {
-        const position = await userDataStore.getPosition(i);
-        console.log(`Position ${i + 1}:`, {
+    // Add closed positions
+    for (let i = 0; i < closedPositionCount.toNumber(); i++) {
+        const position = await userDataStore.getClosedPosition(i);
+        output.closedPositions.push({
             realizedPnl: position.realizedPnl.toString(),
             totalBought: position.totalBought.toString(),
             asset: position.asset,
-        }, "\n");
+        });
     }
+    
+    // Add current positions
+    for (let i = 0; i < currentPositionCount.toNumber(); i++) {
+        const position = await userDataStore.getCurrentPosition(i);
+        output.currentPositions.push({
+            size: position.size.toString(),
+            avgPrice: position.avgPrice.toString(),
+            initialValue: position.initialValue.toString(),
+            currentValue: position.currentValue.toString(),
+            cashPnl: position.cashPnl.toString(),
+            percentPnl: position.percentPnl.toString(),
+            totalBought: position.totalBought.toString(),
+            realizedPnl: position.realizedPnl.toString(),
+            percentRealizedPnl: position.percentRealizedPnl.toString(),
+            curPrice: position.curPrice.toString(),
+        });
+    }
+    
+    // Print formatted JSON output
+    console.log("=== Complete User Data (JSON) ===\n");
+    console.log(JSON.stringify(output, null, 2), "\n");
 }
 
 // Timer utility
@@ -174,80 +212,78 @@ async function main() {
     console.log("Start time:", new Date().toISOString(), "\n");
     
     const prepareStartTime = Date.now();
-    console.log("=== Preparing Closed Positions Request ===\n");
-    const closedPositionsData = await prepareAttestationRequest(
-        closedPositionsUrl,
-        closedPositionsQueryParams,
-        closedPositionsJq,
-        closedPositionsAbiSignature
-    );
+    console.log("=== Preparing All Requests in Parallel ===\n");
+    
+    // Prepare all requests in parallel
+    const [closedPositionsData, valueData, activityData, currentPositionsData] = await Promise.all([
+        prepareAttestationRequest(closedPositionsUrl, closedPositionsQueryParams, closedPositionsJq, closedPositionsAbiSignature),
+        prepareAttestationRequest(valueUrl, valueQueryParams, valueJq, valueAbiSignature),
+        prepareAttestationRequest(activityUrl, activityQueryParams, activityJq, activityAbiSignature),
+        prepareAttestationRequest(currentPositionsUrl, currentPositionsQueryParams, currentPositionsJq, currentPositionsAbiSignature),
+    ]);
+    
     console.log("Closed Positions Data:", JSON.stringify(closedPositionsData, null, 2), "\n");
+    console.log("Value Data:", JSON.stringify(valueData, null, 2), "\n");
+    console.log("Activity Data:", JSON.stringify(activityData, null, 2), "\n");
+    console.log("Current Positions Data:", JSON.stringify(currentPositionsData, null, 2), "\n");
     console.log("⏱️  Preparation time:", formatDuration(Date.now() - prepareStartTime), "\n");
 
+    // Validate all requests
     if (closedPositionsData.status !== "VALID" || !closedPositionsData.abiEncodedRequest) {
         console.error("Failed to prepare closed positions request:", closedPositionsData);
         process.exit(1);
     }
-
-    console.log("=== Preparing Value Request ===\n");
-    const valueData = await prepareAttestationRequest(
-        valueUrl,
-        valueQueryParams,
-        valueJq,
-        valueAbiSignature
-    );
-    console.log("Value Data:", JSON.stringify(valueData, null, 2), "\n");
-
     if (valueData.status !== "VALID" || !valueData.abiEncodedRequest) {
         console.error("Failed to prepare value request:", valueData);
         process.exit(1);
     }
-
-    console.log("=== Preparing Activity Request ===\n");
-    const activityData = await prepareAttestationRequest(
-        activityUrl,
-        activityQueryParams,
-        activityJq,
-        activityAbiSignature
-    );
-    console.log("Activity Data:", JSON.stringify(activityData, null, 2), "\n");
-
     if (activityData.status !== "VALID" || !activityData.abiEncodedRequest) {
         console.error("Failed to prepare activity request:", activityData);
         process.exit(1);
     }
+    if (currentPositionsData.status !== "VALID" || !currentPositionsData.abiEncodedRequest) {
+        console.error("Failed to prepare current positions request:", currentPositionsData);
+        process.exit(1);
+    }
 
     const submitStartTime = Date.now();
-    console.log("=== Submitting All Requests ===\n");
-    const closedPositionsRoundId = await submitAttestationRequest(closedPositionsData.abiEncodedRequest);
+    console.log("=== Submitting All Requests in Parallel ===\n");
+    
+    // Submit all requests in parallel
+    const [closedPositionsRoundId, valueRoundId, activityRoundId, currentPositionsRoundId] = await Promise.all([
+        submitAttestationRequest(closedPositionsData.abiEncodedRequest),
+        submitAttestationRequest(valueData.abiEncodedRequest),
+        submitAttestationRequest(activityData.abiEncodedRequest),
+        submitAttestationRequest(currentPositionsData.abiEncodedRequest),
+    ]);
+    
     const closedPositionsRoundLink = `https://${network.name}-systems-explorer.flare.rocks/voting-round/${closedPositionsRoundId}?tab=fdc`;
-    console.log(`Closed Positions Round Link: ${closedPositionsRoundLink}\n`);
-
-    const valueRoundId = await submitAttestationRequest(valueData.abiEncodedRequest);
     const valueRoundLink = `https://${network.name}-systems-explorer.flare.rocks/voting-round/${valueRoundId}?tab=fdc`;
-    console.log(`Value Round Link: ${valueRoundLink}\n`);
-
-    const activityRoundId = await submitAttestationRequest(activityData.abiEncodedRequest);
     const activityRoundLink = `https://${network.name}-systems-explorer.flare.rocks/voting-round/${activityRoundId}?tab=fdc`;
+    const currentPositionsRoundLink = `https://${network.name}-systems-explorer.flare.rocks/voting-round/${currentPositionsRoundId}?tab=fdc`;
+    
+    console.log(`Closed Positions Round Link: ${closedPositionsRoundLink}\n`);
+    console.log(`Value Round Link: ${valueRoundLink}\n`);
     console.log(`Activity Round Link: ${activityRoundLink}\n`);
+    console.log(`Current Positions Round Link: ${currentPositionsRoundLink}\n`);
     console.log("⏱️  Submission time:", formatDuration(Date.now() - submitStartTime), "\n");
 
     const proofStartTime = Date.now();
-    console.log("=== Retrieving Proofs ===\n");
-    console.log(`Waiting for Closed Positions round ${closedPositionsRoundId} to finalize...`);
-    console.log(`Monitor progress: ${closedPositionsRoundLink}\n`);
-    const closedPositionsProof = await retrieveDataAndProof(
-        closedPositionsData.abiEncodedRequest,
-        closedPositionsRoundId
-    );
-
-    console.log(`Waiting for Value round ${valueRoundId} to finalize...`);
-    console.log(`Monitor progress: ${valueRoundLink}\n`);
-    const valueProof = await retrieveDataAndProof(valueData.abiEncodedRequest, valueRoundId);
-
-    console.log(`Waiting for Activity round ${activityRoundId} to finalize...`);
-    console.log(`Monitor progress: ${activityRoundLink}\n`);
-    const activityProof = await retrieveDataAndProof(activityData.abiEncodedRequest, activityRoundId);
+    console.log("=== Retrieving Proofs in Parallel ===\n");
+    console.log(`Waiting for all rounds to finalize...`);
+    console.log(`Closed Positions: ${closedPositionsRoundLink}`);
+    console.log(`Value: ${valueRoundLink}`);
+    console.log(`Activity: ${activityRoundLink}`);
+    console.log(`Current Positions: ${currentPositionsRoundLink}\n`);
+    
+    // Retrieve all proofs in parallel (they'll each wait for their round to finalize)
+    const [closedPositionsProof, valueProof, activityProof, currentPositionsProof] = await Promise.all([
+        retrieveDataAndProof(closedPositionsData.abiEncodedRequest, closedPositionsRoundId),
+        retrieveDataAndProof(valueData.abiEncodedRequest, valueRoundId),
+        retrieveDataAndProof(activityData.abiEncodedRequest, activityRoundId),
+        retrieveDataAndProof(currentPositionsData.abiEncodedRequest, currentPositionsRoundId),
+    ]);
+    
     console.log("⏱️  Proof retrieval time:", formatDuration(Date.now() - proofStartTime), "\n");
 
     const deployStartTime = Date.now();
@@ -257,7 +293,7 @@ async function main() {
 
     const interactStartTime = Date.now();
     console.log("=== Interacting with Contract ===\n");
-    await interactWithContract(userDataStore, closedPositionsProof, valueProof, activityProof);
+    await interactWithContract(userDataStore, closedPositionsProof, valueProof, activityProof, currentPositionsProof);
     console.log("⏱️  Contract interaction time:", formatDuration(Date.now() - interactStartTime), "\n");
     
     const endTime = Date.now();
