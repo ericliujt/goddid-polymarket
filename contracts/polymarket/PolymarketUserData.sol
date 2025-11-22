@@ -8,10 +8,14 @@ struct PolymarketUserData {
     string name;
     int256 realizedPnl;
     int256 value;
+    int256 totalBought;
+    string asset;
 }
 
 struct ClosedPositionsDTO {
     int256 realizedPnl;
+    int256 totalBought;
+    string asset;
 }
 
 struct ValueDTO {
@@ -59,7 +63,9 @@ contract PolymarketUserDataStore {
         userData = PolymarketUserData({
             name: activityData.name,
             realizedPnl: closedPositions.realizedPnl,
-            value: valueData.value
+            value: valueData.value,
+            totalBought: closedPositions.totalBought,
+            asset: closedPositions.asset
         });
 
         dataStored = true;

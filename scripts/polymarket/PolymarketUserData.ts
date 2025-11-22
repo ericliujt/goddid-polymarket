@@ -26,12 +26,12 @@ const valueQueryParams = `{"user": "${userAddress}"}`;
 const activityQueryParams = `{"user": "${userAddress}", "limit": "1"}`;
 
 // Simple jq queries (convert floats to integers for int256 ABI encoding)
-const closedPositionsJq = `. | .[0] | {realizedPnl: (.realizedPnl | floor)}`;
+const closedPositionsJq = `. | .[0] | {realizedPnl: (.realizedPnl | floor), totalBought: (.totalBought | floor), asset: (.asset | tostring)}`;
 const valueJq = `. | .[0] | {value: (.value | floor)}`;
 const activityJq = `. | .[0] | {name: .name}`;
 
 // ABI Signatures
-const closedPositionsAbiSignature = `{"components": [{"internalType": "int256", "name": "realizedPnl", "type": "int256"}],"name": "task","type": "tuple"}`;
+const closedPositionsAbiSignature = `{"components": [{"internalType": "int256", "name": "realizedPnl", "type": "int256"},{"internalType": "int256", "name": "totalBought", "type": "int256"},{"internalType": "string", "name": "asset", "type": "string"}],"name": "task","type": "tuple"}`;
 const valueAbiSignature = `{"components": [{"internalType": "int256", "name": "value", "type": "int256"}],"name": "task","type": "tuple"}`;
 const activityAbiSignature = `{"components": [{"internalType": "string", "name": "name", "type": "string"}],"name": "task","type": "tuple"}`;
 
@@ -69,9 +69,18 @@ async function prepareAttestationRequest(
 async function retrieveDataAndProof(abiEncodedRequest: string, roundId: number) {
     // Ensure proper URL formatting with trailing slash
     const baseUrl = COSTON2_DA_LAYER_URL?.endsWith('/') ? COSTON2_DA_LAYER_URL : `${COSTON2_DA_LAYER_URL}/`;
+    // Try v1 endpoint first, fallback to v0 if needed
     const url = `${baseUrl}api/v1/fdc/proof-by-request-round-raw`;
     console.log("DA Layer URL:", url, "\n");
-    return await retrieveDataAndProofBaseWithRetry(url, abiEncodedRequest, roundId);
+    try {
+        return await retrieveDataAndProofBaseWithRetry(url, abiEncodedRequest, roundId);
+    } catch (error: any) {
+        // If v1 fails, try v0 endpoint (used in fassets)
+        console.log("v1 endpoint failed, trying v0 endpoint...\n");
+        const urlV0 = `${baseUrl}api/v0/fdc/get-proof-round-id-bytes`;
+        console.log("DA Layer URL (v0):", urlV0, "\n");
+        return await retrieveDataAndProofBaseWithRetry(urlV0, abiEncodedRequest, roundId);
+    }
 }
 
 async function deployAndVerifyContract() {
@@ -128,10 +137,32 @@ async function interactWithContract(
         name: storedData.name,
         realizedPnl: storedData.realizedPnl.toString(),
         value: storedData.value.toString(),
+        totalBought: storedData.totalBought.toString(),
+        asset: storedData.asset,
     }, "\n");
 }
 
+// Timer utility
+function formatDuration(ms: number): string {
+    const seconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    
+    if (hours > 0) {
+        return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
+    } else if (minutes > 0) {
+        return `${minutes}m ${seconds % 60}s`;
+    } else {
+        return `${seconds}s`;
+    }
+}
+
 async function main() {
+    const startTime = Date.now();
+    console.log("=== Starting Polymarket Attestation Process ===\n");
+    console.log("Start time:", new Date().toISOString(), "\n");
+    
+    const prepareStartTime = Date.now();
     console.log("=== Preparing Closed Positions Request ===\n");
     const closedPositionsData = await prepareAttestationRequest(
         closedPositionsUrl,
@@ -140,6 +171,7 @@ async function main() {
         closedPositionsAbiSignature
     );
     console.log("Closed Positions Data:", JSON.stringify(closedPositionsData, null, 2), "\n");
+    console.log("⏱️  Preparation time:", formatDuration(Date.now() - prepareStartTime), "\n");
 
     if (closedPositionsData.status !== "VALID" || !closedPositionsData.abiEncodedRequest) {
         console.error("Failed to prepare closed positions request:", closedPositionsData);
@@ -174,6 +206,7 @@ async function main() {
         process.exit(1);
     }
 
+    const submitStartTime = Date.now();
     console.log("=== Submitting All Requests ===\n");
     const closedPositionsRoundId = await submitAttestationRequest(closedPositionsData.abiEncodedRequest);
     const closedPositionsRoundLink = `https://${network.name}-systems-explorer.flare.rocks/voting-round/${closedPositionsRoundId}?tab=fdc`;
@@ -186,7 +219,9 @@ async function main() {
     const activityRoundId = await submitAttestationRequest(activityData.abiEncodedRequest);
     const activityRoundLink = `https://${network.name}-systems-explorer.flare.rocks/voting-round/${activityRoundId}?tab=fdc`;
     console.log(`Activity Round Link: ${activityRoundLink}\n`);
+    console.log("⏱️  Submission time:", formatDuration(Date.now() - submitStartTime), "\n");
 
+    const proofStartTime = Date.now();
     console.log("=== Retrieving Proofs ===\n");
     console.log(`Waiting for Closed Positions round ${closedPositionsRoundId} to finalize...`);
     console.log(`Monitor progress: ${closedPositionsRoundLink}\n`);
@@ -202,15 +237,29 @@ async function main() {
     console.log(`Waiting for Activity round ${activityRoundId} to finalize...`);
     console.log(`Monitor progress: ${activityRoundLink}\n`);
     const activityProof = await retrieveDataAndProof(activityData.abiEncodedRequest, activityRoundId);
+    console.log("⏱️  Proof retrieval time:", formatDuration(Date.now() - proofStartTime), "\n");
 
+    const deployStartTime = Date.now();
     console.log("=== Deploying Contract ===\n");
     const userDataStore: PolymarketUserDataStoreInstance = await deployAndVerifyContract();
+    console.log("⏱️  Deployment time:", formatDuration(Date.now() - deployStartTime), "\n");
 
+    const interactStartTime = Date.now();
     console.log("=== Interacting with Contract ===\n");
     await interactWithContract(userDataStore, closedPositionsProof, valueProof, activityProof);
+    console.log("⏱️  Contract interaction time:", formatDuration(Date.now() - interactStartTime), "\n");
+    
+    const endTime = Date.now();
+    const totalDuration = endTime - startTime;
+    console.log("\n=== Process Complete ===\n");
+    console.log("End time:", new Date().toISOString());
+    console.log("Total duration:", formatDuration(totalDuration), `(${totalDuration}ms)\n`);
 }
 
 void main().then(() => {
     process.exit(0);
+}).catch((error) => {
+    console.error("Fatal error:", error);
+    process.exit(1);
 });
 
