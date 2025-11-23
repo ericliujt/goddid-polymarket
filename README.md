@@ -1,138 +1,167 @@
-# Flare Hardhat Starter Kit
+# goddid.money – Polymarket Credit Protocol
 
-This is a starter kit for interacting with Flare blockchain.
-It provides example code for interacting with enshrined Flare protocol, and useful deployed contracts.
-It also demonstrates, how the official Flare smart contract periphery [package](https://www.npmjs.com/package/@flarenetwork/flare-periphery-contracts) can be used in your projects.
+## 🚀 Overview
+**goddid.money** converts a Polymarket trader’s verified trading history into an on chain credit profile and enables borrowing FXRP against their performance. The protocol integrates **Flare Data Connector (FDC)** for trust minimized Polymarket ingestion, **FAssets synthetic XRP** for lending liquidity, **Pyth Entropy** for anti gaming loan variability, and **Privy’s embedded wallet with session signer** for deterministic enforcement. Users receive a real credit rating based on their Polymarket history and borrow directly into a Privy controlled wallet.
 
-## Getting started
+---
 
-If you are new to Hardhat please check the [Hardhat getting started doc](https://hardhat.org/hardhat-runner/docs/getting-started#overview)
+## ⚙️ Core Features
 
-1. Clone and install dependencies:
+### 🔗 Trust Minimized Polymarket Ingestion
+- Uses **Flare’s Data Connector** to fetch verifiable Web2 data from Polymarket.
+- Backend constructs a Web2Json request with a jq post processor.
+- Returns ABI encoded payload and Merkle proof verified on chain.
+- On chain oracle contracts store validated positions and trades.
 
-    ```console
-    git clone https://github.com/flare-foundation/flare-hardhat-starter.git
-    cd flare-hardhat-starter
-    ```
+### 📊 Quantitative On Chain Credit Scoring
+- Computes ROI, volatility normalized return, win rate, profit factor, drawdown, HHI concentration, and dead share.
+- Produces performance and risk subscores.
+- Transforms them via logistic PD model into a **300 to 850** credit score.
+- Score determines LTV and borrowing power.
 
-    and then run:
+### 🎲 Pyth Entropy Loan Randomization
+- Each loan quote consumes verifiable randomness.
+- Randomness introduces controlled LTV and max borrow variation.
+- Prevents deterministic loan farming.
+- Removes backend and miner influence from credit pricing.
 
-    ```console
-    yarn
-    ```
+### 💸 Synthetic XRP Lending via FAssets (FXRP)
+- Borrowing occurs in **FXRP**, synthetic XRP minted through Flare’s FAssets system.
+- Liquidity comes from an external XRP provider who deposits native XRP, converts it into FXRP, and seeds the lending pool.
+- Pool is modular and can later be swapped for LP vaults, AMMs, or external yield strategies.
 
-    or
+### 🛡 Privy Embedded Wallet + Delegated Execution
+- Every user receives a **Privy embedded wallet** and a **session signer**.
+- Session signer handles amortization pulls, collateral checks, liquidation, default writeoffs, and blacklist updates.
+- Enables offline enforcement and removes the need for custom escrow logic.
+- Saved the project from writing an entire custody and enforcement subsystem in hackathon constraints.
 
-    ```console
-    npm install --force
-    ```
+### 🌐 Clean Next.js Frontend
+- Real time credit display
+- Borrow, withdraw, and wallet connection modules
+- Privy provider integrated with session signer initialization
+- TSX component architecture
 
-2. Set up `.env` file
+---
 
-    ```console
-    cp .env.example .env
-    ```
+## 🛠 Tech Stack
 
-3. Change the `PRIVATE_KEY` in the `.env` file to yours
+### Blockchain
+- Flare FDC, Web2Json, Merkle verified ingestion  
+- FAssets + FXRP synthetic XRP  
+- Pyth Entropy randomness  
+- XRPL address binding and flows  
+- Hardhat (TypeScript)  
+- Solidity contracts for:
+  - Credit scoring engine  
+  - Polymarket oracle  
+  - FXRP pool  
+  - FAssets interactions  
 
-4. Compile the project
+### Backend + Scripts
+- TypeScript + ethers v6  
+- Flare Periphery Contracts  
+- Polymarket ingestion scripts  
+- FXRP minting, swapping, redeeming  
+- Credit engine runners  
 
-    ```console
-    yarn hardhat compile
-    ```
+### Frontend
+- Next.js  
+- React + TSX  
+- Privy embedded wallet  
+- Client side lending UI  
 
-    or
+---
 
-    ```console
-    npx hardhat compile
-    ```
+## 📂 Repository Structure
 
-    This will compile all `.sol` files in your `/contracts` folder.
-    It will also generate artifacts and TypeScript type definitions needed for scripts.
-
-5. Run Scripts
-
-    **Polymarket Scripts:**
-    
-    ```console
-    # Fetch and store Polymarket user data
-    npx hardhat run scripts/polymarket/PolymarketUserData.ts --network coston2
-    
-    # Fetch and store Polymarket positions
-    npx hardhat run scripts/polymarket/PolymarketPosition.ts --network coston2
-    ```
-
-    **FAssets Scripts:**
-    
-    ```console
-    # Get FXRP contract address
-    npx hardhat run scripts/fassets/getFXRP.ts --network coston2
-    
-    # Get FAssets settings
-    npx hardhat run scripts/fassets/settings.ts --network coston2
-    ```
-
-    For more details, see [scripts/README.md](./scripts/README.md)
-
-6. Run Tests (if available)
-
-    ```console
-    yarn hardhat test
-    ```
-
-    or
-
-    ```console
-    npx hardhat test
-    ```
-
-## Repository structure
-
-```
-├── contracts: Solidity smart contracts
-├── scripts: Typescript scripts that interact with the blockchain
-├── test
+GODDID-POLYMARKET
+├── contracts
+│   ├── creditscore
+│   │   └── CreditScore.sol
+│   ├── fassets
+│   │   ├── FAssetsAgentInfo.sol
+│   │   ├── FAssetsRedeem.sol
+│   │   ├── FAssetsSettings.sol
+│   │   ├── FXRPool.sol
+│   │   └── SwapAndRedeem.sol
+│   ├── polymarket
+│   │   ├── PolymarketPosition.sol
+│   │   ├── PolymarketUserData.sol
+│   └── README.md
+│
+├── scripts
+│   ├── creditEngine
+│   │   ├── deployCreditScore.ts
+│   │   ├── submitPolymarketData.ts
+│   │   ├── runCreditScore.ts
+│   ├── fassets
+│   │   ├── getFXRP.ts
+│   │   ├── mintingCap.ts
+│   │   ├── swapAndRedeem.ts
+│   │   └── redeem.ts
+│   ├── polymarket
+│   │   ├── PolymarketUserData.ts
+│   │   └── PolymarketPosition.ts
+│   └── utils
+│       ├── core.ts
+│       ├── fdc.ts
+│       └── getters.ts
+│
+├── frontend
+│   ├── app
+│   └── components
+│       ├── privy-provider.tsx
+│       ├── session-signers.tsx
+│       ├── lending-section.tsx
+│       ├── wallet-connection.tsx
+│       ├── demo-section.tsx
+│       └── withdraw.tsx
+│
 ├── hardhat.config.ts
 ├── package.json
-├── README.md
-├── tsconfig.json
-└── yarn.lock
-```
+└── tsconfig.json
 
-## Contributing
+---
 
-Before opening a pull request, lint and format the code.
-You can do that by running the following commands.
+## 🏎 Running the Project
 
-```sh
-yarn format:fix
-```
-
-```sh
-yarn lint:fix
-```
-
-## Quick Reference
-
-**Compile contracts:**
+### 1. Install Dependencies
 ```bash
+yarn
+# or
+npm install --force
+# Project Runbook & Architecture Notes
+
+## 2. Configure Environment
+cp .env.example .env  
+Add PRIVATE_KEY, XRPL details, Privy keys
+
+## 3. Compile Contracts
 npx hardhat compile
-```
 
-**Run Polymarket script:**
-```bash
-npx hardhat run scripts/polymarket/PolymarketUserData.ts --network coston2
-```
+## 4. Run Polymarket Ingestion
+npx hardhat run scripts/polymarket/PolymarketUserData.ts --network coston2  
+npx hardhat run scripts/polymarket/PolymarketPosition.ts --network coston2
 
-**Run FAssets script:**
-```bash
-npx hardhat run scripts/fassets/getFXRP.ts --network coston2
-```
+## 5. Compute Credit Score
+npx hardhat run scripts/creditEngine/submitPolymarketData.ts --network coston2  
+npx hardhat run scripts/creditEngine/runCreditScore.ts --network coston2
 
-For detailed startup instructions, see [scripts/README.md](./scripts/README.md)
+## 6. FXRP and FAssets Ops
+npx hardhat run scripts/fassets/getFXRP.ts --network coston2  
+npx hardhat run scripts/fassets/swapAndRedeem.ts --network coston2
 
-## Resources
+## 7. Start Frontend
+yarn dev  
+open http://localhost:3000
 
-- [Flare Developer Hub](https://dev.flare.network/)
-- [Hardhat Guides](https://dev.flare.network/fdc/guides/hardhat)
-- [Hardhat Docs](https://hardhat.org/docs)
+## 🤝 Why Flare
+Flare provided verifiable Web2 ingestion through FDC and the synthetic XRP system through FAssets and FXRP, letting the protocol operate entirely on chain with real Polymarket data.
+
+## 🧩 Why Privy
+Privy replaced an entire escrow and enforcement subsystem by giving us embedded wallets and session signer delegated execution, letting the protocol handle repayments, liquidation, and debt recovery without user approvals.
+
+## 👥 Team
+**Team: goddid.money**  
+Zayaan, Pravesh, Konrad, Eric
