@@ -170,104 +170,108 @@ export function StakingSection() {
 
     try {
       setActionLoading('deposit');
-      setActionStatus('Preparing transaction...');
+      setActionStatus('Preparing deposit...');
 
-      const { signer, ethersProvider } = await getWalletSigner();
+      // Get user address from connected wallet
+      const { signer } = await getWalletSigner();
       const userAddress = await signer.getAddress();
 
-      // Step 1: Get pool contract instance
-      setActionStatus('Connecting to FXRPool...');
-      const poolContract = new ethers.Contract(POOL_ADDRESS, FXRPOOL_ABI, signer);
+      setActionStatus(`Starting deposit of ${depositAmount} FXRP...`);
 
-      // Step 2: Get FXRP token address from pool
-      setActionStatus('Getting FXRP token address...');
-      const fxrpAddress = await poolContract.getFXRPAddress();
+      // Call the API route that executes the Hardhat script
+      const response = await fetch('/api/fxrpPool/deposit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          depositAmount: depositAmount,
+          userAddress: userAddress,
+        }),
+      });
 
-      // Step 3: Get FXRP token instance
-      const fxrpContract = new ethers.Contract(fxrpAddress, ERC20_ABI, signer);
-
-      // Step 4: Get token decimals from AssetManager
-      setActionStatus('Getting token decimals...');
-      const assetManagerAddress = await getAssetManagerAddress(ethersProvider);
-      const assetManager = new ethers.Contract(
-        assetManagerAddress,
-        ASSET_MANAGER_ABI,
-        ethersProvider
-      );
-      const decimals = await assetManager.assetMintingDecimals();
-      const decimalsNumber = Number(decimals);
-
-      // Step 5: Convert deposit amount to token units
-      const depositAmountWei = ethers.parseUnits(depositAmount, decimalsNumber);
-
-      // Step 6: Get user's FXRP balance
-      setActionStatus('Checking your FXRP balance...');
-      const userBalance = await fxrpContract.balanceOf(userAddress);
-      const userBalanceFormatted = ethers.formatUnits(userBalance, decimalsNumber);
-      
-      // Step 7: Check if user has enough balance
-      if (userBalance < depositAmountWei) {
-        throw new Error(
-          `Insufficient FXRP balance. Required: ${depositAmount} FXRP, Have: ${userBalanceFormatted} FXRP`
-        );
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || errorData.message || 'Failed to start deposit');
       }
 
-      // Step 8: Check current allowance
-      setActionStatus('Checking approval...');
-      const currentAllowance = await fxrpContract.allowance(userAddress, POOL_ADDRESS);
-      const allowanceFormatted = ethers.formatUnits(currentAllowance, decimalsNumber);
+      // Set up SSE event listener
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
 
-      // Step 9: Approve if needed
-      if (currentAllowance < depositAmountWei) {
-        setActionStatus('Approving FXRP for pool... Please sign the approval transaction in your wallet.');
-        const approveTx = await fxrpContract.approve(POOL_ADDRESS, depositAmountWei);
-        setActionStatus(`Approval transaction: ${approveTx.hash}. Waiting for confirmation...`);
-        await approveTx.wait();
-        setActionStatus('Approval confirmed. Proceeding with deposit...');
-      } else {
-        setActionStatus(`Sufficient allowance already set (${allowanceFormatted} FXRP)`);
+      if (!reader) {
+        throw new Error('Failed to get response stream');
       }
 
-      // Step 10: Get pool balance before deposit
-      const poolBalanceBefore = await poolContract.getPoolBalance();
-      const poolBalanceBeforeFormatted = ethers.formatUnits(poolBalanceBefore, decimalsNumber);
+      let buffer = '';
+      let isComplete = false;
 
-      // Step 11: Deposit FXRP into pool
-      setActionStatus('Depositing FXRP into pool... Please sign the deposit transaction in your wallet.');
-      const depositTx = await poolContract.deposit(depositAmountWei);
-      setActionStatus(`Deposit transaction: ${depositTx.hash}. Waiting for confirmation...`);
-      await depositTx.wait();
+      while (!isComplete) {
+        const { done, value } = await reader.read();
+        
+        if (done) {
+          break;
+        }
 
-      // Step 12: Get pool balance after deposit
-      const poolBalanceAfter = await poolContract.getPoolBalance();
-      const poolBalanceAfterFormatted = ethers.formatUnits(poolBalanceAfter, decimalsNumber);
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
 
-      // Step 13: Get user's deposit balance
-      const userDepositBalance = await poolContract.getUserBalance(userAddress);
-      const userDepositBalanceFormatted = ethers.formatUnits(userDepositBalance, decimalsNumber);
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              
+              if (data.message) {
+                setActionStatus(data.message);
+              }
+              
+              if (data.type === 'success') {
+                setActionStatus(`✅ ${data.message}`);
+              } else if (data.type === 'error') {
+                setActionStatus(`❌ ${data.message}`);
+              }
+              
+              if (data.event === 'complete') {
+                isComplete = true;
+                if (data.success) {
+                  setActionStatus(`✅ Successfully deposited ${depositAmount} FXRP!`);
+                  setDepositAmount('');
+                  setShowDepositInput(false);
+                  
+                  // Refresh pool info after a short delay
+                  setTimeout(() => {
+                    fetchPoolInfo();
+                  }, 2000);
+                } else {
+                  throw new Error(data.error || 'Deposit failed');
+                }
+              }
+            } catch (parseError) {
+              // Skip malformed JSON
+              console.warn('Failed to parse SSE data:', parseError);
+            }
+          }
+        }
+      }
 
-      setActionStatus(
-        `✅ Successfully deposited ${depositAmount} FXRP!\n` +
-        `Transaction: ${depositTx.hash}\n` +
-        `Pool Balance: ${poolBalanceBeforeFormatted} → ${poolBalanceAfterFormatted} FXRP\n` +
-        `Your Deposit Balance: ${userDepositBalanceFormatted} FXRP`
-      );
-      setDepositAmount('');
-      setShowDepositInput(false);
-      
-      // Refresh pool info after a short delay to ensure blockchain state is updated
-      setTimeout(() => {
-        fetchPoolInfo();
-      }, 2000);
+      // Handle remaining buffer
+      if (buffer.trim()) {
+        try {
+          const data = JSON.parse(buffer.slice(6));
+          if (data.message) {
+            setActionStatus(data.message);
+          }
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
+
     } catch (error: any) {
       console.error('Deposit error:', error);
       let errorMessage = 'Deposit failed.';
       if (error.message) {
         errorMessage = error.message;
-      } else if (error.code === 'ACTION_REJECTED' || error.code === 4001) {
-        errorMessage = 'Transaction was rejected. Please try again.';
-      } else if (error.code === 'INSUFFICIENT_FUNDS') {
-        errorMessage = 'Insufficient funds for gas fees. Please add more funds to your wallet.';
       }
       setActionStatus(`❌ ${errorMessage}`);
     } finally {

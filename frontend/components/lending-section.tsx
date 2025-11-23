@@ -169,11 +169,6 @@ const toHexChainId = (chainId: number): `0x${string}` =>
     }
   }, [authenticated, wallets]);
 
-<<<<<<< Updated upstream
-  const switchToFlareNetwork = async () => {
-    if (!authenticated || wallets.length === 0) {
-      await login();
-=======
   // Network configurations
   const FLARE_MAINNET_NETWORK = {
     chainId: toHexChainId(FLARE_MAINNET_CHAIN_ID), // 0xE in hex
@@ -191,34 +186,18 @@ const toHexChainId = (chainId: number): `0x${string}` =>
   const handleSwitchNetwork = async (targetChainId: number = COSTON2_CHAIN_ID) => {
     if (wallets.length === 0) {
       alert('No wallet connected. Please connect your wallet first.');
->>>>>>> Stashed changes
       return;
     }
 
-      const browserWallets = wallets.filter(w => w.walletClientType !== 'privy');
-      if (browserWallets.length === 0) {
+    const browserWallets = wallets.filter(w => w.walletClientType !== 'privy');
+    if (browserWallets.length === 0) {
       alert('Please use a browser wallet (like MetaMask) to switch networks');
-        return;
-      }
+      return;
+    }
 
     setIsSwitchingNetwork(true);
     try {
       const wallet = browserWallets[0];
-<<<<<<< Updated upstream
-      const provider = await wallet.getEthereumProvider();
-      
-      if (!provider || typeof provider.request !== 'function') {
-        throw new Error('Wallet provider not available');
-      }
-
-      try {
-        // First, try to switch to the network
-        await provider.request({
-          method: 'wallet_switchEthereumChain',
-          params: [{ chainId: COSTON2_NETWORK.chainId }],
-        });
-        
-=======
       const networkConfig = targetChainId === FLARE_MAINNET_CHAIN_ID ? FLARE_MAINNET_NETWORK : COSTON2_NETWORK;
       const targetChainHex = toHexChainId(targetChainId);
 
@@ -226,33 +205,25 @@ const toHexChainId = (chainId: number): `0x${string}` =>
         // Use Privy's switchChain method
         // This works for both embedded and browser wallets
         await wallet.switchChain(targetChainHex);
->>>>>>> Stashed changes
         setIsConnectedToFlare(true);
         setCurrentChainId(COSTON2_CHAIN_ID);
       } catch (switchError: any) {
         // This error code indicates that the chain has not been added to MetaMask
         if (switchError.code === 4902) {
           try {
-              await provider.request({
-                method: 'wallet_addEthereumChain',
-<<<<<<< Updated upstream
-              params: [COSTON2_NETWORK],
-            });
+            const provider = await wallet.getEthereumProvider();
+            if (!provider || typeof provider.request !== 'function') {
+              throw new Error('Wallet provider not available');
+            }
             
-            // After adding, try switching again
             await provider.request({
-              method: 'wallet_switchEthereumChain',
-              params: [{ chainId: COSTON2_NETWORK.chainId }],
+              method: 'wallet_addEthereumChain',
+              params: [networkConfig],
             });
             
-=======
-                params: [networkConfig],
-              });
-              
-              // Try switching again after adding
-              await wallet.switchChain(targetChainHex);
->>>>>>> Stashed changes
-              setIsConnectedToFlare(true);
+            // Try switching again after adding
+            await wallet.switchChain(targetChainHex);
+            setIsConnectedToFlare(true);
             setCurrentChainId(COSTON2_CHAIN_ID);
           } catch (addError) {
             console.error('Failed to add Coston2 network:', addError);
