@@ -123,7 +123,7 @@ export function DemoSection() {
               Connect Your Wallet
             </h2>
             <p className="text-zinc-700">
-              Please connect your wallet to access the demo section.
+              Please connect your wallet to access
             </p>
           </div>
         </div>
