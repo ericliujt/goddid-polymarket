@@ -74,13 +74,13 @@ async function prepareAttestationRequest(
 
 async function retrieveDataAndProof(abiEncodedRequest: string, roundId: number) {
     // Ensure proper URL formatting with trailing slash
-    const baseUrl = COSTON2_DA_LAYER_URL?.endsWith('/') ? COSTON2_DA_LAYER_URL : `${COSTON2_DA_LAYER_URL}/`;
+    const baseUrl = COSTON2_DA_LAYER_URL?.endsWith("/") ? COSTON2_DA_LAYER_URL : `${COSTON2_DA_LAYER_URL}/`;
     // Try v1 endpoint first, fallback to v0 if needed
     const url = `${baseUrl}api/v1/fdc/proof-by-request-round-raw`;
     console.log("DA Layer URL:", url, "\n");
     try {
         return await retrieveDataAndProofBaseWithRetry(url, abiEncodedRequest, roundId);
-    } catch (error: any) {
+    } catch (_error: any) {
         // If v1 fails, try v0 endpoint (used in fassets)
         console.log("v1 endpoint failed, trying v0 endpoint...\n");
         const urlV0 = `${baseUrl}api/v0/fdc/get-proof-round-id-bytes`;
@@ -148,7 +148,7 @@ async function interactWithContract(
     const storedData = await userDataStore.getUserData();
     const closedPositionCount = await userDataStore.getClosedPositionCount();
     const currentPositionCount = await userDataStore.getCurrentPositionCount();
-    
+
     // Build comprehensive JSON output
     const output: any = {
         user: {
@@ -158,7 +158,7 @@ async function interactWithContract(
         closedPositions: [] as any[],
         currentPositions: [] as any[],
     };
-    
+
     // Add closed positions
     for (let i = 0; i < closedPositionCount.toNumber(); i++) {
         const position = await userDataStore.getClosedPosition(i);
@@ -168,7 +168,7 @@ async function interactWithContract(
             asset: position.asset,
         });
     }
-    
+
     // Add current positions
     for (let i = 0; i < currentPositionCount.toNumber(); i++) {
         const position = await userDataStore.getCurrentPosition(i);
@@ -185,7 +185,7 @@ async function interactWithContract(
             curPrice: position.curPrice.toString(),
         });
     }
-    
+
     // Print formatted JSON output
     console.log("=== Complete User Data (JSON) ===\n");
     console.log(JSON.stringify(output, null, 2), "\n");
@@ -196,7 +196,7 @@ function formatDuration(ms: number): string {
     const seconds = Math.floor(ms / 1000);
     const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(minutes / 60);
-    
+
     if (hours > 0) {
         return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
     } else if (minutes > 0) {
@@ -210,18 +210,28 @@ async function main() {
     const startTime = Date.now();
     console.log("=== Starting Polymarket Attestation Process ===\n");
     console.log("Start time:", new Date().toISOString(), "\n");
-    
+
     const prepareStartTime = Date.now();
     console.log("=== Preparing All Requests in Parallel ===\n");
-    
+
     // Prepare all requests in parallel
     const [closedPositionsData, valueData, activityData, currentPositionsData] = await Promise.all([
-        prepareAttestationRequest(closedPositionsUrl, closedPositionsQueryParams, closedPositionsJq, closedPositionsAbiSignature),
+        prepareAttestationRequest(
+            closedPositionsUrl,
+            closedPositionsQueryParams,
+            closedPositionsJq,
+            closedPositionsAbiSignature
+        ),
         prepareAttestationRequest(valueUrl, valueQueryParams, valueJq, valueAbiSignature),
         prepareAttestationRequest(activityUrl, activityQueryParams, activityJq, activityAbiSignature),
-        prepareAttestationRequest(currentPositionsUrl, currentPositionsQueryParams, currentPositionsJq, currentPositionsAbiSignature),
+        prepareAttestationRequest(
+            currentPositionsUrl,
+            currentPositionsQueryParams,
+            currentPositionsJq,
+            currentPositionsAbiSignature
+        ),
     ]);
-    
+
     console.log("Closed Positions Data:", JSON.stringify(closedPositionsData, null, 2), "\n");
     console.log("Value Data:", JSON.stringify(valueData, null, 2), "\n");
     console.log("Activity Data:", JSON.stringify(activityData, null, 2), "\n");
@@ -247,21 +257,28 @@ async function main() {
     }
 
     const submitStartTime = Date.now();
-    console.log("=== Submitting All Requests in Parallel ===\n");
-    
-    // Submit all requests in parallel
-    const [closedPositionsRoundId, valueRoundId, activityRoundId, currentPositionsRoundId] = await Promise.all([
-        submitAttestationRequest(closedPositionsData.abiEncodedRequest),
-        submitAttestationRequest(valueData.abiEncodedRequest),
-        submitAttestationRequest(activityData.abiEncodedRequest),
-        submitAttestationRequest(currentPositionsData.abiEncodedRequest),
-    ]);
-    
+    console.log("=== Submitting All Requests Sequentially ===\n");
+    console.log("⚠️  Submitting sequentially to avoid nonce conflicts...\n");
+
+    // Submit all requests sequentially to avoid nonce conflicts
+    // Each transaction needs to be sent and have its nonce incremented before the next one
+    console.log("📤 Submitting Closed Positions request...\n");
+    const closedPositionsRoundId = await submitAttestationRequest(closedPositionsData.abiEncodedRequest);
+
+    console.log("📤 Submitting Value request...\n");
+    const valueRoundId = await submitAttestationRequest(valueData.abiEncodedRequest);
+
+    console.log("📤 Submitting Activity request...\n");
+    const activityRoundId = await submitAttestationRequest(activityData.abiEncodedRequest);
+
+    console.log("📤 Submitting Current Positions request...\n");
+    const currentPositionsRoundId = await submitAttestationRequest(currentPositionsData.abiEncodedRequest);
+
     const closedPositionsRoundLink = `https://${network.name}-systems-explorer.flare.rocks/voting-round/${closedPositionsRoundId}?tab=fdc`;
     const valueRoundLink = `https://${network.name}-systems-explorer.flare.rocks/voting-round/${valueRoundId}?tab=fdc`;
     const activityRoundLink = `https://${network.name}-systems-explorer.flare.rocks/voting-round/${activityRoundId}?tab=fdc`;
     const currentPositionsRoundLink = `https://${network.name}-systems-explorer.flare.rocks/voting-round/${currentPositionsRoundId}?tab=fdc`;
-    
+
     console.log(`Closed Positions Round Link: ${closedPositionsRoundLink}\n`);
     console.log(`Value Round Link: ${valueRoundLink}\n`);
     console.log(`Activity Round Link: ${activityRoundLink}\n`);
@@ -275,7 +292,7 @@ async function main() {
     console.log(`Value: ${valueRoundLink}`);
     console.log(`Activity: ${activityRoundLink}`);
     console.log(`Current Positions: ${currentPositionsRoundLink}\n`);
-    
+
     // Retrieve all proofs in parallel (they'll each wait for their round to finalize)
     const [closedPositionsProof, valueProof, activityProof, currentPositionsProof] = await Promise.all([
         retrieveDataAndProof(closedPositionsData.abiEncodedRequest, closedPositionsRoundId),
@@ -283,7 +300,7 @@ async function main() {
         retrieveDataAndProof(activityData.abiEncodedRequest, activityRoundId),
         retrieveDataAndProof(currentPositionsData.abiEncodedRequest, currentPositionsRoundId),
     ]);
-    
+
     console.log("⏱️  Proof retrieval time:", formatDuration(Date.now() - proofStartTime), "\n");
 
     const deployStartTime = Date.now();
@@ -295,7 +312,7 @@ async function main() {
     console.log("=== Interacting with Contract ===\n");
     await interactWithContract(userDataStore, closedPositionsProof, valueProof, activityProof, currentPositionsProof);
     console.log("⏱️  Contract interaction time:", formatDuration(Date.now() - interactStartTime), "\n");
-    
+
     const endTime = Date.now();
     const totalDuration = endTime - startTime;
     console.log("\n=== Process Complete ===\n");
@@ -303,10 +320,11 @@ async function main() {
     console.log("Total duration:", formatDuration(totalDuration), `(${totalDuration}ms)\n`);
 }
 
-void main().then(() => {
-    process.exit(0);
-}).catch((error) => {
-    console.error("Fatal error:", error);
-    process.exit(1);
-});
-
+void main()
+    .then(() => {
+        process.exit(0);
+    })
+    .catch((error) => {
+        console.error("Fatal error:", error);
+        process.exit(1);
+    });

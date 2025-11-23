@@ -37,8 +37,15 @@ export function Navbar({ activeSection, onSectionChange }: NavbarProps) {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <div className="flex-shrink-0">
-            <h1 className="text-xl font-bold text-white drop-shadow-lg">
-              Privy Demo
+            <h1 
+              className="text-3xl sm:text-4xl font-black text-zinc-900 drop-shadow-lg uppercase tracking-tight"
+              style={{ 
+                fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+                fontWeight: 900,
+                letterSpacing: '-0.02em'
+              }}
+            >
+              GODDID.MONEY
             </h1>
           </div>
 
@@ -48,8 +55,8 @@ export function Navbar({ activeSection, onSectionChange }: NavbarProps) {
               onClick={() => onSectionChange('lending')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                 activeSection === 'lending'
-                  ? 'bg-white/20 text-white backdrop-blur-sm'
-                  : 'text-white/80 hover:text-white hover:bg-white/10'
+                  ? 'bg-white/30 text-zinc-900 backdrop-blur-sm font-semibold'
+                  : 'text-zinc-700 hover:text-zinc-900 hover:bg-white/20'
               }`}
             >
               Lending
@@ -58,8 +65,8 @@ export function Navbar({ activeSection, onSectionChange }: NavbarProps) {
               onClick={() => onSectionChange('staking')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                 activeSection === 'staking'
-                  ? 'bg-white/20 text-white backdrop-blur-sm'
-                  : 'text-white/80 hover:text-white hover:bg-white/10'
+                  ? 'bg-white/30 text-zinc-900 backdrop-blur-sm font-semibold'
+                  : 'text-zinc-700 hover:text-zinc-900 hover:bg-white/20'
               }`}
             >
               Staking
@@ -68,8 +75,8 @@ export function Navbar({ activeSection, onSectionChange }: NavbarProps) {
               onClick={() => onSectionChange('demo')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                 activeSection === 'demo'
-                  ? 'bg-white/20 text-white backdrop-blur-sm'
-                  : 'text-white/80 hover:text-white hover:bg-white/10'
+                  ? 'bg-white/30 text-zinc-900 backdrop-blur-sm font-semibold'
+                  : 'text-zinc-700 hover:text-zinc-900 hover:bg-white/20'
               }`}
             >
               Demo
@@ -81,7 +88,7 @@ export function Navbar({ activeSection, onSectionChange }: NavbarProps) {
             {authenticated ? (
               <button
                 onClick={handleLogout}
-                className="px-4 py-2 bg-white/20 backdrop-blur-sm text-white rounded-lg hover:bg-white/30 transition-all text-sm font-medium border border-white/30"
+                className="px-4 py-2 bg-zinc-900/80 backdrop-blur-sm text-white rounded-lg hover:bg-zinc-900 transition-all text-sm font-medium border border-zinc-800/50"
               >
                 Disconnect
               </button>
@@ -89,7 +96,7 @@ export function Navbar({ activeSection, onSectionChange }: NavbarProps) {
               <button
                 onClick={handleLogin}
                 disabled={isConnecting}
-                className="px-4 py-2 bg-white/20 backdrop-blur-sm text-white rounded-lg hover:bg-white/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm font-medium border border-white/30"
+                className="px-4 py-2 bg-zinc-900/80 backdrop-blur-sm text-white rounded-lg hover:bg-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm font-medium border border-zinc-800/50"
               >
                 {isConnecting ? 'Connecting...' : 'Connect Wallet'}
               </button>

@@ -14,10 +14,10 @@ import { IAssetManager } from "@flarenetwork/flare-periphery-contracts/coston2/I
 contract FXRPool is ReentrancyGuard, Ownable {
     IERC20 public immutable fxrpToken;
     uint256 public totalPoolBalance;
-    
+
     // Track user deposits (optional - can be used for accounting)
     mapping(address => uint256) public userDeposits;
-    
+
     // Events
     event Deposit(address indexed user, uint256 amount, uint256 newPoolBalance);
     event Withdraw(address indexed user, uint256 amount, uint256 newPoolBalance);
@@ -39,10 +39,10 @@ contract FXRPool is ReentrancyGuard, Ownable {
     function deposit(uint256 amount) external nonReentrant {
         require(amount > 0, "Amount must be greater than zero");
         require(fxrpToken.transferFrom(msg.sender, address(this), amount), "Transfer failed");
-        
+
         totalPoolBalance += amount;
         userDeposits[msg.sender] += amount;
-        
+
         emit Deposit(msg.sender, amount, totalPoolBalance);
     }
 
@@ -54,12 +54,12 @@ contract FXRPool is ReentrancyGuard, Ownable {
         require(amount > 0, "Amount must be greater than zero");
         require(userDeposits[msg.sender] >= amount, "Insufficient balance");
         require(totalPoolBalance >= amount, "Pool has insufficient balance");
-        
+
         userDeposits[msg.sender] -= amount;
         totalPoolBalance -= amount;
-        
+
         require(fxrpToken.transfer(msg.sender, amount), "Transfer failed");
-        
+
         emit Withdraw(msg.sender, amount, totalPoolBalance);
     }
 
@@ -72,10 +72,10 @@ contract FXRPool is ReentrancyGuard, Ownable {
         require(to != address(0), "Cannot transfer to zero address");
         require(amount > 0, "Amount must be greater than zero");
         require(totalPoolBalance >= amount, "Pool has insufficient balance");
-        
+
         totalPoolBalance -= amount;
         require(fxrpToken.transfer(to, amount), "Transfer failed");
-        
+
         emit Transfer(address(this), to, amount);
     }
 
@@ -87,22 +87,22 @@ contract FXRPool is ReentrancyGuard, Ownable {
     function batchTransfer(address[] calldata recipients, uint256[] calldata amounts) external onlyOwner nonReentrant {
         require(recipients.length == amounts.length, "Arrays length mismatch");
         require(recipients.length > 0, "Empty arrays");
-        
+
         uint256 totalAmount = 0;
         for (uint256 i = 0; i < amounts.length; i++) {
             require(recipients[i] != address(0), "Cannot transfer to zero address");
             require(amounts[i] > 0, "Amount must be greater than zero");
             totalAmount += amounts[i];
         }
-        
+
         require(totalPoolBalance >= totalAmount, "Pool has insufficient balance");
-        
+
         totalPoolBalance -= totalAmount;
-        
+
         for (uint256 i = 0; i < recipients.length; i++) {
             require(fxrpToken.transfer(recipients[i], amounts[i]), "Transfer failed");
         }
-        
+
         emit BatchTransfer(address(this), recipients, amounts);
     }
 
@@ -147,4 +147,3 @@ contract FXRPool is ReentrancyGuard, Ownable {
         IERC20(token).transfer(to, amount);
     }
 }
-

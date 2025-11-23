@@ -76,10 +76,7 @@ contract PolymarketUserDataStore {
             (ClosedPositionsDTO)
         );
         ValueDTO memory valueData = abi.decode(valueProof.data.responseBody.abiEncodedData, (ValueDTO));
-        ActivityDTO memory activityData = abi.decode(
-            activityProof.data.responseBody.abiEncodedData,
-            (ActivityDTO)
-        );
+        ActivityDTO memory activityData = abi.decode(activityProof.data.responseBody.abiEncodedData, (ActivityDTO));
         CurrentPositionsDTO memory currentPositions = abi.decode(
             currentPositionsProof.data.responseBody.abiEncodedData,
             (CurrentPositionsDTO)
@@ -90,12 +87,12 @@ contract PolymarketUserDataStore {
         // Initialize userData with name and value
         userData.name = activityData.name;
         userData.value = valueData.value;
-        
+
         // Copy closed positions array
         for (uint256 i = 0; i < closedPositions.positions.length; i++) {
             userData.closedPositions.push(closedPositions.positions[i]);
         }
-        
+
         // Copy current positions array
         for (uint256 i = 0; i < currentPositions.positions.length; i++) {
             userData.currentPositions.push(currentPositions.positions[i]);
@@ -113,23 +110,23 @@ contract PolymarketUserDataStore {
     function abiSignatureHackPosition(Position calldata position) public pure {}
     function abiSignatureHackCurrentPositions(CurrentPositionsDTO calldata dto) public pure {}
     function abiSignatureHackCurrentPosition(CurrentPosition calldata position) public pure {}
-    
+
     function getClosedPositionCount() public view returns (uint256) {
         require(dataStored, "No data stored yet");
         return userData.closedPositions.length;
     }
-    
+
     function getClosedPosition(uint256 index) public view returns (Position memory) {
         require(dataStored, "No data stored yet");
         require(index < userData.closedPositions.length, "Index out of bounds");
         return userData.closedPositions[index];
     }
-    
+
     function getCurrentPositionCount() public view returns (uint256) {
         require(dataStored, "No data stored yet");
         return userData.currentPositions.length;
     }
-    
+
     function getCurrentPosition(uint256 index) public view returns (CurrentPosition memory) {
         require(dataStored, "No data stored yet");
         require(index < userData.currentPositions.length, "Index out of bounds");
@@ -142,4 +139,3 @@ contract PolymarketUserDataStore {
         return ContractRegistry.getFdcVerification().verifyWeb2Json(_proof);
     }
 }
-

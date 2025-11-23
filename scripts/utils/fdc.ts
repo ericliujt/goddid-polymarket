@@ -97,20 +97,22 @@ export async function postRequestToDALayer(url: string, request: any, watchStatu
         },
         body: JSON.stringify(request),
     });
-    
+
     // Get response body first (can only be read once)
     let responseBody: any;
     try {
         responseBody = await response.json();
-    } catch (e) {
+    } catch (_e) {
         const errorText = await response.text();
         responseBody = { error: errorText };
     }
-    
+
     if (watchStatus && response.status !== 200) {
         // Include error details from response body
         const errorDetails = `\nError details: ${JSON.stringify(responseBody, null, 2)}`;
-        throw new Error(`Response status is not OK, status ${response.status} ${response.statusText}${errorDetails}\nURL: ${url}\nRequest: ${JSON.stringify(request, null, 2)}\n`);
+        throw new Error(
+            `Response status is not OK, status ${response.status} ${response.statusText}${errorDetails}\nURL: ${url}\nRequest: ${JSON.stringify(request, null, 2)}\n`
+        );
     } else if (watchStatus) {
         console.log("Response status is OK\n");
     }

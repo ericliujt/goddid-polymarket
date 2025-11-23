@@ -22,14 +22,14 @@ async function main() {
 
     // Get pool contract instance
     const pool: FXRPoolInstance = await FXRPool.at(POOL_ADDRESS);
-    
+
     // Get FXRP token address
     const fxrpAddress = await pool.getFXRPAddress();
     console.log("FXRP Token Address:", fxrpAddress);
 
     // Get FXRP token instance
     const fxrp: ERC20Instance = await IERC20.at(fxrpAddress);
-    
+
     // Get token decimals from AssetManager
     const assetManager = await getAssetManagerFXRP();
     const decimals = await assetManager.assetMintingDecimals();
@@ -84,4 +84,3 @@ main().catch((error) => {
     console.error(error);
     process.exitCode = 1;
 });
-

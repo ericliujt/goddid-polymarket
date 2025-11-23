@@ -29,11 +29,11 @@ async function singleTransfer() {
 
     // Get pool contract instance
     const pool: FXRPoolInstance = await FXRPool.at(POOL_ADDRESS);
-    
+
     // Get FXRP token address
     const fxrpAddress = await pool.getFXRPAddress();
     const fxrp: ERC20Instance = await IERC20.at(fxrpAddress);
-    
+
     // Get token decimals from AssetManager
     const assetManager = await getAssetManagerFXRP();
     const decimals = await assetManager.assetMintingDecimals();
@@ -41,7 +41,7 @@ async function singleTransfer() {
     // Convert transfer amount to token units
     const transferAmountWei = web3.utils.toBN(web3.utils.toWei(TRANSFER_AMOUNT, "ether"));
     const transferAmount = transferAmountWei.div(web3.utils.toBN(10).pow(web3.utils.toBN(18 - Number(decimals))));
-    
+
     console.log("Transfer Amount (token units):", transferAmount.toString());
 
     // Get pool balance before transfer
@@ -50,7 +50,11 @@ async function singleTransfer() {
 
     // Get recipient balance before transfer
     const recipientBalanceBefore = await fxrp.balanceOf(RECIPIENT_ADDRESS);
-    console.log("Recipient Balance (before):", formatUnits(recipientBalanceBefore.toString(), Number(decimals)), "FXRP");
+    console.log(
+        "Recipient Balance (before):",
+        formatUnits(recipientBalanceBefore.toString(), Number(decimals)),
+        "FXRP"
+    );
 
     // Transfer FXRP from pool to recipient
     console.log("\nTransferring FXRP from pool to recipient...");
@@ -73,11 +77,13 @@ async function batchTransfer() {
     const transferAmountsStr = process.env.TRANSFER_AMOUNTS || "";
 
     if (!recipientAddressesStr || !transferAmountsStr) {
-        throw new Error("For batch transfer, please set RECIPIENT_ADDRESSES and TRANSFER_AMOUNTS environment variables (comma-separated)");
+        throw new Error(
+            "For batch transfer, please set RECIPIENT_ADDRESSES and TRANSFER_AMOUNTS environment variables (comma-separated)"
+        );
     }
 
-    const recipientAddresses = recipientAddressesStr.split(",").map(addr => addr.trim());
-    const transferAmounts = transferAmountsStr.split(",").map(amt => amt.trim());
+    const recipientAddresses = recipientAddressesStr.split(",").map((addr) => addr.trim());
+    const transferAmounts = transferAmountsStr.split(",").map((amt) => amt.trim());
 
     console.log("=== Batch Transfer ===\n");
     console.log("Pool Address:", POOL_ADDRESS);
@@ -87,22 +93,25 @@ async function batchTransfer() {
 
     // Get pool contract instance
     const pool: FXRPoolInstance = await FXRPool.at(POOL_ADDRESS);
-    
+
     // Get FXRP token address
     const fxrpAddress = await pool.getFXRPAddress();
     const fxrp: ERC20Instance = await IERC20.at(fxrpAddress);
-    
+
     // Get token decimals from AssetManager
     const assetManager = await getAssetManagerFXRP();
     const decimals = await assetManager.assetMintingDecimals();
 
     // Convert amounts to token units
-    const transferAmountsBN = transferAmounts.map(amount => {
+    const transferAmountsBN = transferAmounts.map((amount) => {
         const amountWei = web3.utils.toBN(web3.utils.toWei(amount, "ether"));
         return amountWei.div(web3.utils.toBN(10).pow(web3.utils.toBN(18 - Number(decimals))));
     });
 
-    console.log("Transfer Amounts (token units):", transferAmountsBN.map(a => a.toString()));
+    console.log(
+        "Transfer Amounts (token units):",
+        transferAmountsBN.map((a) => a.toString())
+    );
 
     // Get pool balance before transfer
     const poolBalanceBefore = await pool.getPoolBalance();
@@ -141,7 +150,7 @@ async function main() {
 
     // Check if batch transfer is requested
     const isBatchTransfer = process.env.RECIPIENT_ADDRESSES && process.env.TRANSFER_AMOUNTS;
-    
+
     if (isBatchTransfer) {
         await batchTransfer();
     } else {
@@ -153,4 +162,3 @@ main().catch((error) => {
     console.error(error);
     process.exitCode = 1;
 });
-

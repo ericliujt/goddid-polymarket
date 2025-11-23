@@ -34,10 +34,10 @@ async function main() {
 
     // Get pool contract instance
     const pool: FXRPoolInstance = await FXRPool.at(POOL_ADDRESS);
-    
+
     // Get FXRP token address
-    const fxrpAddress = await pool.getFXRPAddress();
-    
+    const _fxrpAddress = await pool.getFXRPAddress();
+
     // Get token decimals from AssetManager
     const assetManager = await getAssetManagerFXRP();
     const decimals = await assetManager.assetMintingDecimals();
@@ -127,7 +127,7 @@ async function main() {
             const block = await web3.eth.getBlock(event.blockNumber);
             const recipients = event.returnValues.recipients || [];
             const amounts = event.returnValues.amounts || [];
-            
+
             for (let i = 0; i < recipients.length; i++) {
                 events.push({
                     event: "BatchTransfer",
@@ -153,14 +153,14 @@ async function main() {
     } else {
         console.log(`Found ${events.length} event(s):\n`);
         console.log("=".repeat(100));
-        
+
         for (const evt of events) {
-            const date = new Date(evt.timestamp! * 1000).toISOString();
+            const date = new Date((evt.timestamp ?? 0) * 1000).toISOString();
             console.log(`\nEvent: ${evt.event}`);
             console.log(`Block: ${evt.blockNumber}`);
             console.log(`Transaction: ${evt.transactionHash}`);
             console.log(`Time: ${date}`);
-            
+
             if (evt.event === "Deposit") {
                 console.log(`User: ${evt.user}`);
                 console.log(`Amount: ${evt.amount} FXRP`);
@@ -181,10 +181,10 @@ async function main() {
     }
 
     // Summary statistics
-    const deposits = events.filter(e => e.event === "Deposit");
-    const withdrawals = events.filter(e => e.event === "Withdraw");
-    const transfers = events.filter(e => e.event === "Transfer" || e.event === "BatchTransfer");
-    
+    const deposits = events.filter((e) => e.event === "Deposit");
+    const withdrawals = events.filter((e) => e.event === "Withdraw");
+    const transfers = events.filter((e) => e.event === "Transfer" || e.event === "BatchTransfer");
+
     const totalDeposited = deposits.reduce((sum, e) => sum + parseFloat(e.amount || "0"), 0);
     const totalWithdrawn = withdrawals.reduce((sum, e) => sum + parseFloat(e.amount || "0"), 0);
     const totalTransferred = transfers.reduce((sum, e) => sum + parseFloat(e.amount || "0"), 0);
@@ -201,4 +201,3 @@ main().catch((error) => {
     console.error(error);
     process.exitCode = 1;
 });
-

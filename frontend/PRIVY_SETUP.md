@@ -27,10 +27,19 @@ This project includes Privy integration for browser wallet connections and sessi
      # Optional: Default signer ID (pre-populates the signer ID field)
      NEXT_PUBLIC_PRIVY_SIGNER_ID=your-signer-id-here
      
-     # Optional: For server-side operations (if needed)
+     # Required for server-side operations (API routes)
      PRIVY_APP_SECRET=your-app-secret-here
      PRIVY_WALLET_AUTH_PRIVATE_KEY=wallet-auth:your-private-key-here
+     PRIVY_APP_ID=your-privy-app-id-here
+     
+     # Required for Polymarket FDC Attestation (API routes)
+     # These should match the values in your root .env file
+     WEB2JSON_VERIFIER_URL_TESTNET=https://verifier-url-here
+     VERIFIER_API_KEY_TESTNET=your_api_key_here
+     COSTON2_DA_LAYER_URL=https://da-layer-url-here
      ```
+   
+   **Note**: For Next.js API routes to access environment variables, they must be in `frontend/.env.local` (not just the root `.env` file). Copy the FDC-related variables from your root `.env` file to `frontend/.env.local`.
 
 3. **Configure Session Signers in Privy Dashboard**
    - Follow the [Privy Session Signers guide](https://docs.privy.io/wallets/using-wallets/session-signers/configure-session-signers)

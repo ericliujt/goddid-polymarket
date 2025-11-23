@@ -23,14 +23,14 @@ async function main() {
 
     // Get pool contract instance
     const pool: FXRPoolInstance = await FXRPool.at(POOL_ADDRESS);
-    
+
     // Get FXRP token address
     const fxrpAddress = await pool.getFXRPAddress();
     console.log("FXRP Token Address:", fxrpAddress);
 
     // Get FXRP token instance
     const fxrp: ERC20Instance = await IERC20.at(fxrpAddress);
-    
+
     // Get token decimals from AssetManager
     const assetManager = await getAssetManagerFXRP();
     const decimals = await assetManager.assetMintingDecimals();
@@ -39,7 +39,7 @@ async function main() {
     // Convert deposit amount to token units
     const depositAmountWei = web3.utils.toBN(web3.utils.toWei(DEPOSIT_AMOUNT, "ether"));
     const depositAmount = depositAmountWei.div(web3.utils.toBN(10).pow(web3.utils.toBN(18 - Number(decimals))));
-    
+
     console.log("Deposit Amount (token units):", depositAmount.toString());
 
     // Get user's FXRP balance
@@ -50,7 +50,9 @@ async function main() {
 
     // Check if user has enough balance
     if (userBalance.lt(depositAmount)) {
-        throw new Error(`Insufficient FXRP balance. Required: ${formatUnits(depositAmount.toString(), Number(decimals))} FXRP, Have: ${formatUnits(userBalance.toString(), Number(decimals))} FXRP`);
+        throw new Error(
+            `Insufficient FXRP balance. Required: ${formatUnits(depositAmount.toString(), Number(decimals))} FXRP, Have: ${formatUnits(userBalance.toString(), Number(decimals))} FXRP`
+        );
     }
 
     // Check current allowance
@@ -91,4 +93,3 @@ main().catch((error) => {
     console.error(error);
     process.exitCode = 1;
 });
-

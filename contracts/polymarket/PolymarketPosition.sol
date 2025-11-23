@@ -63,4 +63,3 @@ contract PolymarketPositionList {
         return ContractRegistry.getFdcVerification().verifyWeb2Json(_proof);
     }
 }
-

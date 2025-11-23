@@ -10,7 +10,7 @@ async function main() {
 
     // Deploy the FXRPool contract
     const fxrPool: FXRPoolInstance = await FXRPool.new();
-    
+
     const poolAddress = fxrPool.address;
     console.log("FXRPool deployed to:", poolAddress);
 
@@ -41,4 +41,3 @@ main().catch((error) => {
     console.error(error);
     process.exitCode = 1;
 });
-

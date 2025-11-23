@@ -23,11 +23,11 @@ async function main() {
 
     // Get pool contract instance
     const pool: FXRPoolInstance = await FXRPool.at(POOL_ADDRESS);
-    
+
     // Get FXRP token address
     const fxrpAddress = await pool.getFXRPAddress();
     const fxrp: ERC20Instance = await IERC20.at(fxrpAddress);
-    
+
     // Get token decimals from AssetManager
     const assetManager = await getAssetManagerFXRP();
     const decimals = await assetManager.assetMintingDecimals();
@@ -35,7 +35,7 @@ async function main() {
     // Convert withdraw amount to token units
     const withdrawAmountWei = web3.utils.toBN(web3.utils.toWei(WITHDRAW_AMOUNT, "ether"));
     const withdrawAmount = withdrawAmountWei.div(web3.utils.toBN(10).pow(web3.utils.toBN(18 - Number(decimals))));
-    
+
     console.log("Withdraw Amount (token units):", withdrawAmount.toString());
 
     // Get user address
@@ -48,7 +48,9 @@ async function main() {
 
     // Check if user has enough balance
     if (userDepositBalance.lt(withdrawAmount)) {
-        throw new Error(`Insufficient deposit balance. Required: ${formatUnits(withdrawAmount.toString(), Number(decimals))} FXRP, Have: ${formatUnits(userDepositBalance.toString(), Number(decimals))} FXRP`);
+        throw new Error(
+            `Insufficient deposit balance. Required: ${formatUnits(withdrawAmount.toString(), Number(decimals))} FXRP, Have: ${formatUnits(userDepositBalance.toString(), Number(decimals))} FXRP`
+        );
     }
 
     // Get pool balance before withdraw
@@ -74,7 +76,11 @@ async function main() {
 
     // Get user's deposit balance after withdraw
     const userDepositBalanceAfter = await pool.getUserBalance(userAddress);
-    console.log("User Deposit Balance (after):", formatUnits(userDepositBalanceAfter.toString(), Number(decimals)), "FXRP");
+    console.log(
+        "User Deposit Balance (after):",
+        formatUnits(userDepositBalanceAfter.toString(), Number(decimals)),
+        "FXRP"
+    );
 
     console.log("\n=== Withdraw Complete ===");
 }
@@ -83,4 +89,3 @@ main().catch((error) => {
     console.error(error);
     process.exitCode = 1;
 });
-

@@ -32,7 +32,7 @@ export default function Home() {
           <MeshGradient
             width={dimensions.width}
             height={dimensions.height}
-            colors={["#e0eaff", "#121eca", "#f75092", "#9f50d3"]}
+            colors={["#E3E3E3", "#037BDD", "#00F7FF"]}
             distortion={0.8}
             swirl={0.13}
             grainMixer={0}
