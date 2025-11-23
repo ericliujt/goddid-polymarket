@@ -42,9 +42,10 @@ async function main() {
 
     console.log("Deposit Amount (token units):", depositAmount.toString());
 
-    // Get user's FXRP balance
+    // Get user address from environment variable or use first account from hardhat config
     const accounts = await web3.eth.getAccounts();
-    const userAddress = accounts[0];
+    const userAddress = process.env.USER_ADDRESS || accounts[0];
+    console.log("User Address:", userAddress);
     const userBalance = await fxrp.balanceOf(userAddress);
     console.log("User FXRP Balance:", formatUnits(userBalance.toString(), Number(decimals)), "FXRP");
 

@@ -38,9 +38,10 @@ async function main() {
 
     console.log("Withdraw Amount (token units):", withdrawAmount.toString());
 
-    // Get user address
+    // Get user address from environment variable or use first account from hardhat config
     const accounts = await web3.eth.getAccounts();
-    const userAddress = accounts[0];
+    const userAddress = process.env.USER_ADDRESS || accounts[0];
+    console.log("User Address:", userAddress);
 
     // Get user's deposit balance
     const userDepositBalance = await pool.getUserBalance(userAddress);

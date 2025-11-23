@@ -71,9 +71,12 @@ export function LendingSection() {
   const eventSourceRef = useRef<EventSource | null>(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
 
-  // Coston2 network configuration
+const toHexChainId = (chainId: number): `0x${string}` =>
+  `0x${chainId.toString(16)}` as `0x${string}`;
+
+// Coston2 network configuration
   const COSTON2_NETWORK = {
-    chainId: `0x${COSTON2_CHAIN_ID.toString(16)}`, // 0x72 in hex
+    chainId: toHexChainId(COSTON2_CHAIN_ID), // 0x72 in hex
     chainName: 'Coston2',
     nativeCurrency: {
       name: 'Coston2',
@@ -166,9 +169,29 @@ export function LendingSection() {
     }
   }, [authenticated, wallets]);
 
+<<<<<<< Updated upstream
   const switchToFlareNetwork = async () => {
     if (!authenticated || wallets.length === 0) {
       await login();
+=======
+  // Network configurations
+  const FLARE_MAINNET_NETWORK = {
+    chainId: toHexChainId(FLARE_MAINNET_CHAIN_ID), // 0xE in hex
+    chainName: 'Flare',
+    nativeCurrency: {
+      name: 'Flare',
+      symbol: 'FLR',
+      decimals: 18,
+    },
+    rpcUrls: ['https://flare-api.flare.network/ext/C/rpc'],
+    blockExplorerUrls: ['https://flare-explorer.flare.network'],
+  };
+
+  // Switch to Flare network using Privy
+  const handleSwitchNetwork = async (targetChainId: number = COSTON2_CHAIN_ID) => {
+    if (wallets.length === 0) {
+      alert('No wallet connected. Please connect your wallet first.');
+>>>>>>> Stashed changes
       return;
     }
 
@@ -181,6 +204,7 @@ export function LendingSection() {
     setIsSwitchingNetwork(true);
     try {
       const wallet = browserWallets[0];
+<<<<<<< Updated upstream
       const provider = await wallet.getEthereumProvider();
       
       if (!provider || typeof provider.request !== 'function') {
@@ -194,6 +218,15 @@ export function LendingSection() {
           params: [{ chainId: COSTON2_NETWORK.chainId }],
         });
         
+=======
+      const networkConfig = targetChainId === FLARE_MAINNET_CHAIN_ID ? FLARE_MAINNET_NETWORK : COSTON2_NETWORK;
+      const targetChainHex = toHexChainId(targetChainId);
+
+      try {
+        // Use Privy's switchChain method
+        // This works for both embedded and browser wallets
+        await wallet.switchChain(targetChainHex);
+>>>>>>> Stashed changes
         setIsConnectedToFlare(true);
         setCurrentChainId(COSTON2_CHAIN_ID);
       } catch (switchError: any) {
@@ -202,6 +235,7 @@ export function LendingSection() {
           try {
               await provider.request({
                 method: 'wallet_addEthereumChain',
+<<<<<<< Updated upstream
               params: [COSTON2_NETWORK],
             });
             
@@ -211,6 +245,13 @@ export function LendingSection() {
               params: [{ chainId: COSTON2_NETWORK.chainId }],
             });
             
+=======
+                params: [networkConfig],
+              });
+              
+              // Try switching again after adding
+              await wallet.switchChain(targetChainHex);
+>>>>>>> Stashed changes
               setIsConnectedToFlare(true);
             setCurrentChainId(COSTON2_CHAIN_ID);
           } catch (addError) {
