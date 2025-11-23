@@ -66,6 +66,8 @@ async function main() {
     console.log("\nWithdrawing FXRP from pool...");
     const withdrawTx = await pool.withdraw(withdrawAmount);
     console.log("Withdraw transaction:", withdrawTx.tx);
+    console.log("Transaction Hash:", withdrawTx.tx);
+    console.log(`Transaction Link: https://coston2-explorer.flare.network/tx/${withdrawTx.tx}`);
 
     // Get pool balance after withdraw
     const poolBalanceAfter = await pool.getPoolBalance();

@@ -298,45 +298,132 @@ export function StakingSection() {
       setActionLoading('withdraw');
       setActionStatus('Preparing withdrawal...');
 
+      // Get user address from connected wallet
       const { signer } = await getWalletSigner();
-      const decimals = poolInfo.decimals ?? 6;
-      const amountWei = ethers.parseUnits(withdrawAmount, decimals);
       const userAddress = await signer.getAddress();
 
-      // Check user's deposit balance in the pool
-      const poolContract = new ethers.Contract(POOL_ADDRESS, FXRPOOL_ABI, signer);
-      const userDepositBalance = await poolContract.getUserBalance(userAddress);
-      
-      if (userDepositBalance < amountWei) {
-        const balanceFormatted = ethers.formatUnits(userDepositBalance, decimals);
-        throw new Error(
-          `Insufficient deposit balance. You have ${balanceFormatted} FXRP deposited, but want to withdraw ${withdrawAmount} FXRP.`
-        );
+      setActionStatus(`Starting withdrawal of ${withdrawAmount} FXRP...`);
+
+      // Call the API route that executes the Hardhat script
+      const response = await fetch('/api/fxrpPool/withdraw', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          withdrawAmount: withdrawAmount,
+          userAddress: userAddress,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || errorData.message || 'Failed to start withdrawal');
       }
 
-      // Withdraw FXRP from pool
-      setActionStatus('Withdrawing FXRP... Please sign the withdrawal transaction in your wallet.');
-      const withdrawTx = await poolContract.withdraw(amountWei);
-      setActionStatus(`Withdrawal transaction submitted: ${withdrawTx.hash}. Waiting for confirmation...`);
-      await withdrawTx.wait();
+      // Set up SSE event listener
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
 
-      setActionStatus(`✅ Successfully withdrew ${withdrawAmount} FXRP! Transaction: ${withdrawTx.hash}`);
-      setWithdrawAmount('');
-      setShowWithdrawInput(false);
-      
-      // Refresh pool info after a short delay to ensure blockchain state is updated
-      setTimeout(() => {
-        fetchPoolInfo();
-      }, 2000);
+      if (!reader) {
+        throw new Error('Failed to get response stream');
+      }
+
+      let buffer = '';
+      let isComplete = false;
+      let transactionHash: string | null = null;
+      let transactionLink: string | null = null;
+
+      while (!isComplete) {
+        const { done, value } = await reader.read();
+        
+        if (done) {
+          break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              
+              if (data.message) {
+                setActionStatus(data.message);
+                
+                // Extract transaction hash from message
+                const txHashMatch = data.message.match(/0x[a-fA-F0-9]{64}/);
+                if (txHashMatch) {
+                  transactionHash = txHashMatch[0];
+                }
+                
+                // Extract transaction link
+                if (data.link) {
+                  transactionLink = data.link;
+                }
+              }
+              
+              if (data.type === 'success') {
+                setActionStatus(`✅ ${data.message}`);
+              } else if (data.type === 'error') {
+                setActionStatus(`❌ ${data.message}`);
+              } else if (data.type === 'info') {
+                setActionStatus(data.message);
+              }
+              
+              if (data.event === 'complete') {
+                isComplete = true;
+                if (data.success) {
+                  let successMessage = `✅ Successfully withdrew ${withdrawAmount} FXRP!`;
+                  if (data.transactionHash) {
+                    transactionHash = data.transactionHash;
+                    const txLink = `https://coston2-explorer.flare.network/tx/${transactionHash}`;
+                    successMessage += `\n\nTransaction: ${transactionHash}\nView on explorer: ${txLink}`;
+                  } else if (transactionHash) {
+                    const txLink = `https://coston2-explorer.flare.network/tx/${transactionHash}`;
+                    successMessage += `\n\nTransaction: ${transactionHash}\nView on explorer: ${txLink}`;
+                  } else if (transactionLink) {
+                    successMessage += `\n\nView on explorer: ${transactionLink}`;
+                  }
+                  setActionStatus(successMessage);
+                  setWithdrawAmount('');
+                  setShowWithdrawInput(false);
+                  
+                  // Refresh pool info after a short delay
+                  setTimeout(() => {
+                    fetchPoolInfo();
+                  }, 2000);
+                } else {
+                  throw new Error(data.error || 'Withdrawal failed');
+                }
+              }
+            } catch (parseError) {
+              // Skip malformed JSON
+              console.warn('Failed to parse SSE data:', parseError);
+            }
+          }
+        }
+      }
+
+      // Handle remaining buffer
+      if (buffer.trim()) {
+        try {
+          const data = JSON.parse(buffer.slice(6));
+          if (data.message) {
+            setActionStatus(data.message);
+          }
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
+
     } catch (error: any) {
       console.error('Withdraw error:', error);
       let errorMessage = 'Withdrawal failed.';
       if (error.message) {
         errorMessage = error.message;
-      } else if (error.code === 'ACTION_REJECTED' || error.code === 4001) {
-        errorMessage = 'Transaction was rejected. Please try again.';
-      } else if (error.code === 'INSUFFICIENT_FUNDS') {
-        errorMessage = 'Insufficient funds for gas fees. Please add more funds to your wallet.';
       }
       setActionStatus(`❌ ${errorMessage}`);
     } finally {

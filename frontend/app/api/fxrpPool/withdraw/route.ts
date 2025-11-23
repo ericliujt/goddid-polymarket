@@ -71,11 +71,18 @@ export async function POST(request: NextRequest) {
           );
 
           let outputBuffer = '';
+          let transactionHash: string | null = null;
 
           // Stream stdout
           hardhatProcess.stdout.on('data', (data: Buffer) => {
             const text = data.toString();
             outputBuffer += text;
+
+            // Extract transaction hash from output
+            const txHashMatch = text.match(/Transaction Hash:\s*(0x[a-fA-F0-9]{64})/i);
+            if (txHashMatch) {
+              transactionHash = txHashMatch[1];
+            }
 
             // Split by lines
             const lines = outputBuffer.split('\n');
@@ -106,7 +113,19 @@ export async function POST(request: NextRequest) {
                 message: '✅ Withdrawal completed successfully!',
                 type: 'success'
               });
-              sendSSE(controller, 'complete', { success: true });
+              if (transactionHash) {
+                const txLink = `https://coston2-explorer.flare.network/tx/${transactionHash}`;
+                sendSSE(controller, 'log', { 
+                  message: `Transaction: ${transactionHash}`,
+                  type: 'info'
+                });
+                sendSSE(controller, 'log', { 
+                  message: `View on explorer: ${txLink}`,
+                  type: 'info',
+                  link: txLink
+                });
+              }
+              sendSSE(controller, 'complete', { success: true, transactionHash });
             } else {
               sendSSE(controller, 'log', { 
                 message: `❌ Withdrawal failed with exit code ${code}`,
