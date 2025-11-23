@@ -585,7 +585,7 @@ const toHexChainId = (chainId: number): `0x${string}` =>
     }
   }
 
-  // Calculate lending capacity based on credit score and pool balance
+  // Calculate borrowing capacity based on credit score and pool balance
   useEffect(() => {
     if (creditScore && poolInfo) {
       // Parse the pool balance - check if it's in the right format
@@ -600,7 +600,7 @@ const toHexChainId = (chainId: number): `0x${string}` =>
         poolBalance = Number(rawBalance) / 1e6;
       }
       
-      // Lending capacity = (pool balance * 10%) * (credit score / 1000)
+      // Borrowing capacity = (pool balance * 10%) * (credit score / 1000)
       const maxLendingAmount = (poolBalance * 0.1) * (creditScore / 1000);
       setLendingCapacity(maxLendingAmount);
     }
@@ -630,10 +630,10 @@ const toHexChainId = (chainId: number): `0x${string}` =>
     }
   }
 
-  // Handle lending from pool
+  // Handle borrowing from pool
   async function handleLending() {
     if (!lendingAmount || parseFloat(lendingAmount) <= 0) {
-      addLog('Please enter a valid lending amount', 'error');
+      addLog('Please enter a valid borrowing amount', 'error');
       return;
     }
     
@@ -649,7 +649,7 @@ const toHexChainId = (chainId: number): `0x${string}` =>
     
     const requestedAmount = parseFloat(lendingAmount);
     if (requestedAmount > lendingCapacity) {
-      addLog(`Amount exceeds your lending capacity of ${lendingCapacity.toFixed(2)} FXRP`, 'error');
+      addLog(`Amount exceeds your borrowing capacity of ${lendingCapacity.toFixed(2)} FXRP`, 'error');
       return;
     }
     
@@ -660,7 +660,7 @@ const toHexChainId = (chainId: number): `0x${string}` =>
       const wallet = wallets[0];
       const userAddress = wallet.address;
       
-      addLog(`🚀 Processing lending request for ${lendingAmount} FXRP...`, 'log');
+      addLog(`🚀 Processing borrowing request for ${lendingAmount} FXRP...`, 'log');
       
       const response = await fetch('/api/fxrpool', {
         method: 'POST',
@@ -676,7 +676,7 @@ const toHexChainId = (chainId: number): `0x${string}` =>
       });
       
       if (!response.ok) {
-        throw new Error('Failed to process lending');
+        throw new Error('Failed to process borrowing');
       }
       
       const reader = response.body?.getReader();
@@ -710,12 +710,12 @@ const toHexChainId = (chainId: number): `0x${string}` =>
                 addLog(event.message || 'An error occurred', 'error');
               } else if (event.type === 'result') {
                 if (event.success) {
-                  addLog('✅ Lending completed successfully!', 'log');
+                  addLog('✅ Borrowing completed successfully!', 'log');
                   setLendingAmount('');
                   // Refresh pool info
                   await fetchPoolInfo();
                 } else {
-                  addLog(event.message || 'Lending failed', 'error');
+                  addLog(event.message || 'Borrowing failed', 'error');
                 }
               } else if (event.type === 'close') {
                 break;
@@ -727,8 +727,8 @@ const toHexChainId = (chainId: number): `0x${string}` =>
         }
       }
     } catch (error: any) {
-      console.error('Error processing lending:', error);
-      addLog(`Error: ${error.message || 'Failed to process lending'}`, 'error');
+      console.error('Error processing borrowing:', error);
+      addLog(`Error: ${error.message || 'Failed to process borrowing'}`, 'error');
     } finally {
       setIsLending(false);
       const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
@@ -1009,7 +1009,7 @@ const toHexChainId = (chainId: number): `0x${string}` =>
         {/* FXRPool Section */}
         <div className="mt-8 p-6 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 rounded-2xl border border-blue-300/30 backdrop-blur-sm">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-2xl font-bold text-zinc-900">FXRPool Lending</h3>
+            <h3 className="text-2xl font-bold text-zinc-900">Borrow with FXRPool</h3>
             <button
               onClick={fetchPoolInfo}
               disabled={isLoadingPoolInfo}
@@ -1044,7 +1044,7 @@ const toHexChainId = (chainId: number): `0x${string}` =>
                 </div>
                 
                 <div className="bg-white/50 rounded-lg p-4 border border-gray-200/50">
-                  <div className="text-sm text-gray-600">Your Lending Capacity</div>
+                  <div className="text-sm text-gray-600">Your Borrowing Capacity</div>
                   <div className="text-2xl font-bold text-green-600">
                     {creditScore ? lendingCapacity.toFixed(2) : '---'} FXRP
                   </div>
@@ -1056,7 +1056,7 @@ const toHexChainId = (chainId: number): `0x${string}` =>
                 </div>
                 
                 <div className="bg-white/50 rounded-lg p-4 border border-gray-200/50">
-                  <div className="text-sm text-gray-600">Max Pool Lending</div>
+                  <div className="text-sm text-gray-600">Max Pool Borrowing</div>
                   <div className="text-2xl font-bold text-zinc-900">
                     {(() => {
                       let balance = parseFloat(poolInfo.poolBalanceFormatted || '0');
@@ -1071,15 +1071,15 @@ const toHexChainId = (chainId: number): `0x${string}` =>
                 </div>
               </div>
               
-              {/* Lending Interface */}
+              {/* Borrowing Interface */}
               {creditScore && lendingCapacity > 0 && (
                 <div className="bg-white/50 rounded-lg p-6 border border-gray-200/50">
-                  <h4 className="text-lg font-semibold text-zinc-900 mb-4">Request Lending</h4>
+                  <h4 className="text-lg font-semibold text-zinc-900 mb-4">Request Borrowing</h4>
                   
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Amount to Lend (FXRP)
+                        Amount to Borrow (FXRP)
                       </label>
                       <div className="flex gap-2">
                         <input
@@ -1106,7 +1106,7 @@ const toHexChainId = (chainId: number): `0x${string}` =>
                       </div>
                       {lendingAmount && parseFloat(lendingAmount) > lendingCapacity && (
                         <p className="text-red-500 text-sm mt-1">
-                          Amount exceeds your lending capacity
+                          Amount exceeds your borrowing capacity
                       </p>
                     )}
                     </div>
@@ -1122,7 +1122,7 @@ const toHexChainId = (chainId: number): `0x${string}` =>
                           }
                           return balance.toFixed(2);
                         })()} FXRP</div>
-                        <div>• Max Lending: (Pool × 10%) × Credit% = {lendingCapacity.toFixed(2)} FXRP</div>
+                        <div>• Max Borrowing: (Pool × 10%) × Credit% = {lendingCapacity.toFixed(2)} FXRP</div>
                       </div>
                     </div>
                     
@@ -1138,10 +1138,10 @@ const toHexChainId = (chainId: number): `0x${string}` =>
                       {isLending ? (
                         <div className="flex items-center justify-center gap-2">
                           <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
-                          Processing Lending...
+                          Processing Borrowing...
                   </div>
                 ) : (
-                        `Lend ${lendingAmount || '0'} FXRP`
+                        `Borrow ${lendingAmount || '0'} FXRP`
                       )}
                     </button>
                   </div>
@@ -1151,7 +1151,7 @@ const toHexChainId = (chainId: number): `0x${string}` =>
               {!creditScore && (
                 <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
                   <p className="text-yellow-800">
-                    Please calculate your credit score first to see your lending capacity.
+                    Please calculate your credit score first to see your borrowing capacity.
                   </p>
               </div>
               )}
