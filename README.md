@@ -121,7 +121,7 @@ GODDID-POLYMARKET
 ├── hardhat.config.ts
 ├── package.json
 └── tsconfig.json
----
+---**
 
 ## 🏎 Running the Project
 
@@ -136,24 +136,27 @@ npm install --force
 cp .env.example .env  
 Add PRIVATE_KEY, XRPL details, Privy keys
 
-## 3. Compile Contracts
+## 3. Start Frontend
+yarn dev  
+open http://localhost:3000
+
+Start using our lending protocol!
+
+**Optional**
+## Compile Contracts
 npx hardhat compile
 
-## 4. Run Polymarket Ingestion
+## Run Polymarket Ingestion
 npx hardhat run scripts/polymarket/PolymarketUserData.ts --network coston2  
 npx hardhat run scripts/polymarket/PolymarketPosition.ts --network coston2
 
-## 5. Compute Credit Score
+## Compute Credit Score
 npx hardhat run scripts/creditEngine/submitPolymarketData.ts --network coston2  
 npx hardhat run scripts/creditEngine/runCreditScore.ts --network coston2
 
-## 6. FXRP and FAssets Ops
+## FXRP and FAssets Ops
 npx hardhat run scripts/fassets/getFXRP.ts --network coston2  
 npx hardhat run scripts/fassets/swapAndRedeem.ts --network coston2
-
-## 7. Start Frontend
-yarn dev  
-open http://localhost:3000
 
 ## 🤝 Why Flare
 Flare provided verifiable Web2 ingestion through FDC and the synthetic XRP system through FAssets and FXRP, letting the protocol operate entirely on chain with real Polymarket data.
