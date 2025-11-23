@@ -252,6 +252,51 @@ const toHexChainId = (chainId: number): `0x${string}` =>
     }).format(num);
   };
 
+  // Calculate accurate metrics from data
+  const calculateMetrics = () => {
+    if (!data) return null;
+
+    // Realized PnL (from closed positions only)
+    const totalRealizedPnl = data.closedPositions?.reduce((sum, pos) => 
+      sum + parseFloat(pos.realizedPnl || '0'), 0) || 0;
+
+    // Volume Traded (from closed positions)
+    const totalVolumeTraded = data.closedPositions?.reduce((sum, pos) => 
+      sum + parseFloat(pos.totalBought || '0'), 0) || 0;
+
+    // Realized ROI
+    const realizedRoi = totalVolumeTraded > 0 
+      ? (totalRealizedPnl / totalVolumeTraded) * 100 
+      : 0;
+
+    // Open positions metrics
+    const totalInitialValueOpen = data.currentPositions?.reduce((sum, pos) => 
+      sum + parseFloat(pos.initialValue || '0'), 0) || 0;
+
+    const totalUnrealizedPnl = data.currentPositions?.reduce((sum, pos) => 
+      sum + parseFloat(pos.cashPnl || '0'), 0) || 0;
+
+    // Net overall performance
+    const netTotalPnl = totalRealizedPnl + totalUnrealizedPnl;
+    const totalCapitalRisked = totalVolumeTraded + totalInitialValueOpen;
+    const overallRoi = totalCapitalRisked > 0 
+      ? (netTotalPnl / totalCapitalRisked) * 100 
+      : 0;
+
+    return {
+      totalRealizedPnl,
+      totalVolumeTraded,
+      realizedRoi,
+      totalInitialValueOpen,
+      totalUnrealizedPnl,
+      netTotalPnl,
+      totalCapitalRisked,
+      overallRoi,
+    };
+  };
+
+  const metrics = calculateMetrics();
+
   const addLog = (message: string, type: 'log' | 'error' = 'log', link?: string) => {
     setLogs((prev) => [
       ...prev,
@@ -732,7 +777,7 @@ const toHexChainId = (chainId: number): `0x${string}` =>
         {/* Header */}
         <div className="mb-8">
           <h2 className="text-3xl font-bold text-zinc-900 mb-2 drop-shadow-lg">
-            Polymarket Data Attestation
+            Lending
           </h2>
           <p className="text-zinc-700">
             Verify your Polymarket trading data using Flare Data Connector (FDC)
@@ -744,7 +789,7 @@ const toHexChainId = (chainId: number): `0x${string}` =>
           <label className="block text-sm font-medium text-zinc-900 mb-2">
             Polymarket Address
           </label>
-          <div className="flex gap-4">
+          <div className="flex flex-col sm:flex-row gap-4">
             <input
               type="text"
               value={polymarketAddress}
@@ -769,124 +814,197 @@ const toHexChainId = (chainId: number): `0x${string}` =>
         </div>
 
         {/* Improved Data Display */}
-        {data && (
+        {data && metrics && (
           <div className="mb-8 space-y-6">
-            {/* Summary Stats */}
+            {/* Profile Header */}
+            {data.user && (
+              <div className="bg-gradient-to-br from-indigo-500/20 to-purple-500/20 p-6 rounded-xl border border-indigo-300/30 backdrop-blur-sm">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div>
+                    <div className="text-sm text-zinc-600 mb-1">Username</div>
+                    <div className="text-2xl font-bold text-zinc-900">{data.user.name || 'N/A'}</div>
+                  </div>
+                  <div className="text-left sm:text-right">
+                    <div className="text-sm text-zinc-600 mb-1">User ID / Account ID</div>
+                    <div className="text-2xl font-bold text-zinc-900">{data.user.value || 'N/A'}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Lifetime Performance Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="bg-gradient-to-br from-blue-500/20 to-cyan-500/20 p-4 rounded-xl border border-blue-300/30 backdrop-blur-sm">
-                <div className="text-sm text-zinc-700 mb-1">Portfolio Value</div>
-                <div className="text-2xl font-bold text-zinc-900">
-                  ${formatValue(data.user?.value)}
+                <div className="text-sm text-zinc-700 mb-1">Net PnL (Lifetime)</div>
+                <div className={`text-2xl font-bold ${
+                  metrics.netTotalPnl >= 0 ? 'text-green-700' : 'text-red-700'
+                }`}>
+                  ${formatValue(metrics.netTotalPnl)}
                 </div>
               </div>
               
               <div className="bg-gradient-to-br from-green-500/20 to-emerald-500/20 p-4 rounded-xl border border-green-300/30 backdrop-blur-sm">
-                <div className="text-sm text-zinc-700 mb-1">Total Closed P&L</div>
-                <div className="text-2xl font-bold text-green-700">
-                  ${formatValue(
-                    data.closedPositions?.reduce((sum, pos) => 
-                      sum + parseFloat(pos.realizedPnl), 0
-                    )
-                    )}
-                  </div>
+                <div className="text-sm text-zinc-700 mb-1">Realized ROI (Closed)</div>
+                <div className={`text-2xl font-bold ${
+                  metrics.realizedRoi >= 0 ? 'text-green-700' : 'text-red-700'
+                }`}>
+                  {metrics.realizedRoi >= 0 ? '+' : ''}{metrics.realizedRoi.toFixed(1)}%
+                </div>
               </div>
               
               <div className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 p-4 rounded-xl border border-purple-300/30 backdrop-blur-sm">
-                <div className="text-sm text-zinc-700 mb-1">Active Positions</div>
-                <div className="text-2xl font-bold text-zinc-900">
-                  {data.currentPositions?.length || 0}
+                <div className="text-sm text-zinc-700 mb-1">Overall ROI (All Capital)</div>
+                <div className={`text-2xl font-bold ${
+                  metrics.overallRoi >= 0 ? 'text-green-700' : 'text-red-700'
+                }`}>
+                  {metrics.overallRoi >= 0 ? '+' : ''}{metrics.overallRoi.toFixed(1)}%
+                </div>
               </div>
-            </div>
 
               <div className="bg-gradient-to-br from-orange-500/20 to-red-500/20 p-4 rounded-xl border border-orange-300/30 backdrop-blur-sm">
-                <div className="text-sm text-zinc-700 mb-1">Current P&L</div>
-                <div className={`text-2xl font-bold ${
-                  (data.currentPositions?.reduce((sum, pos) => 
-                    sum + parseFloat(pos.cashPnl), 0) || 0) >= 0 
-                    ? 'text-green-700' : 'text-red-700'
-                }`}>
-                  ${formatValue(
-                    data.currentPositions?.reduce((sum, pos) => 
-                      sum + parseFloat(pos.cashPnl), 0
-                    )
-                    )}
-                  </div>
+                <div className="text-sm text-zinc-700 mb-1">Closed Markets</div>
+                <div className="text-2xl font-bold text-zinc-900">
+                  {data.closedPositions?.length || 0}
+                </div>
               </div>
             </div>
 
-            {/* Positions Grid */}
+            {/* Additional Performance Metrics */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white/50 p-4 rounded-xl border border-gray-200/50">
+                <div className="text-sm text-gray-600 mb-1">Realized PnL</div>
+                <div className={`text-xl font-bold ${
+                  metrics.totalRealizedPnl >= 0 ? 'text-green-600' : 'text-red-600'
+                }`}>
+                  ${formatValue(metrics.totalRealizedPnl)}
+                </div>
+              </div>
+              <div className="bg-white/50 p-4 rounded-xl border border-gray-200/50">
+                <div className="text-sm text-gray-600 mb-1">Volume Traded</div>
+                <div className="text-xl font-bold text-zinc-900">
+                  ${formatValue(metrics.totalVolumeTraded)}
+                </div>
+              </div>
+              <div className="bg-white/50 p-4 rounded-xl border border-gray-200/50">
+                <div className="text-sm text-gray-600 mb-1">Unrealized PnL</div>
+                <div className={`text-xl font-bold ${
+                  metrics.totalUnrealizedPnl >= 0 ? 'text-green-600' : 'text-red-600'
+                }`}>
+                  ${formatValue(metrics.totalUnrealizedPnl)} ({metrics.totalInitialValueOpen > 0 ? ((metrics.totalUnrealizedPnl / metrics.totalInitialValueOpen) * 100).toFixed(1) : '0'}%)
+                </div>
+              </div>
+            </div>
+
+            {/* Positions Tables */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Current Positions */}
+              {/* Closed Positions Table */}
+              {data.closedPositions && data.closedPositions.length > 0 && (
+                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-5 border border-white/20">
+                  <h3 className="text-lg font-semibold text-zinc-900 mb-4 flex items-center gap-2">
+                    <span className="w-2 h-2 bg-gray-400 rounded-full"></span>
+                    Closed Positions ({data.closedPositions.length})
+                  </h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-300/50 bg-white/10">
+                          <th className="text-left py-3 px-3 text-gray-700 font-semibold">Market</th>
+                          <th className="text-right py-3 px-3 text-gray-700 font-semibold">Volume</th>
+                          <th className="text-right py-3 px-3 text-gray-700 font-semibold">Realized PnL</th>
+                          <th className="text-right py-3 px-3 text-gray-700 font-semibold">ROI</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.closedPositions.map((pos, idx) => {
+                          const volume = parseFloat(pos.totalBought || '0');
+                          const pnl = parseFloat(pos.realizedPnl || '0');
+                          const roi = volume > 0 ? (pnl / volume) * 100 : 0;
+                          const marketId = pos.asset || `Market ${idx + 1}`;
+                          const shortMarketId = marketId.length > 12 
+                            ? `${marketId.slice(0, 6)}...${marketId.slice(-6)}` 
+                            : marketId;
+                          
+                          return (
+                            <tr key={idx} className="border-b border-gray-200/30 hover:bg-white/20 transition-colors">
+                              <td className="py-3 px-3 text-gray-800 font-mono text-xs">{shortMarketId}</td>
+                              <td className="py-3 px-3 text-right text-gray-800">${formatValue(volume)}</td>
+                              <td className={`py-3 px-3 text-right font-semibold ${
+                                pnl >= 0 ? 'text-green-600' : 'text-red-600'
+                              }`}>
+                                ${formatValue(pnl)}
+                              </td>
+                              <td className={`py-3 px-3 text-right font-semibold ${
+                                roi >= 0 ? 'text-green-600' : 'text-red-600'
+                              }`}>
+                                {roi >= 0 ? '+' : ''}{roi.toFixed(1)}%
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Current Positions Table */}
               {data.currentPositions && data.currentPositions.length > 0 && (
                 <div className="bg-white/10 backdrop-blur-sm rounded-xl p-5 border border-white/20">
                   <h3 className="text-lg font-semibold text-zinc-900 mb-4 flex items-center gap-2">
                     <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                    Active Positions ({data.currentPositions.length})
+                    Current Positions ({data.currentPositions.length})
                   </h3>
-                  <div className="space-y-3 max-h-64 overflow-y-auto custom-scrollbar">
-                    {data.currentPositions.map((pos, idx) => (
-                      <div key={idx} className="bg-white/50 rounded-lg p-3 border border-gray-200/50">
-                        <div className="grid grid-cols-2 gap-2 text-sm">
-                          <div>
-                            <span className="text-gray-600">Size:</span>
-                            <span className="ml-2 font-semibold">${formatValue(pos.size)}</span>
-                          </div>
-                          <div>
-                            <span className="text-gray-600">Value:</span>
-                            <span className="ml-2 font-semibold">${formatValue(pos.currentValue)}</span>
-                          </div>
-                          <div className="col-span-2">
-                            <span className="text-gray-600">P&L:</span>
-                            <span className={`ml-2 font-bold ${
-                              parseFloat(pos.cashPnl) >= 0 ? 'text-green-600' : 'text-red-600'
-                            }`}>
-                              ${formatValue(pos.cashPnl)} ({pos.percentPnl}%)
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                      </div>
-                    )}
-
-                    {/* Closed Positions */}
-                    {data.closedPositions && data.closedPositions.length > 0 && (
-                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-5 border border-white/20">
-                  <h3 className="text-lg font-semibold text-zinc-900 mb-4 flex items-center gap-2">
-                    <span className="w-2 h-2 bg-gray-400 rounded-full"></span>
-                          Closed Positions ({data.closedPositions.length})
-                  </h3>
-                  <div className="space-y-3 max-h-64 overflow-y-auto custom-scrollbar">
-                    {data.closedPositions.slice(0, 5).map((pos, idx) => (
-                      <div key={idx} className="bg-white/50 rounded-lg p-3 border border-gray-200/50">
-                        <div className="grid grid-cols-2 gap-2 text-sm">
-                          <div>
-                            <span className="text-gray-600">Invested:</span>
-                            <span className="ml-2 font-semibold">${formatValue(pos.totalBought)}</span>
-                          </div>
-                          <div>
-                            <span className="text-gray-600">P&L:</span>
-                            <span className={`ml-2 font-bold ${
-                              parseFloat(pos.realizedPnl) >= 0 ? 'text-green-600' : 'text-red-600'
-                            }`}>
-                              ${formatValue(pos.realizedPnl)}
-                            </span>
-                            </div>
-                        </div>
-                            </div>
-                          ))}
-                    {data.closedPositions.length > 5 && (
-                      <div className="text-center text-sm text-gray-500 pt-2">
-                        +{data.closedPositions.length - 5} more positions
-                      </div>
-                    )}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-300/50 bg-white/10">
+                          <th className="text-right py-3 px-3 text-gray-700 font-semibold">Size</th>
+                          <th className="text-right py-3 px-3 text-gray-700 font-semibold">Initial Value</th>
+                          <th className="text-right py-3 px-3 text-gray-700 font-semibold">Current Value</th>
+                          <th className="text-right py-3 px-3 text-gray-700 font-semibold">PnL</th>
+                          <th className="text-right py-3 px-3 text-gray-700 font-semibold">PnL %</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.currentPositions.map((pos, idx) => {
+                          const size = parseFloat(pos.size || '0');
+                          const initialValue = parseFloat(pos.initialValue || '0');
+                          const currentValue = parseFloat(pos.currentValue || '0');
+                          const pnl = parseFloat(pos.cashPnl || '0');
+                          const percentPnl = parseFloat(pos.percentPnl || '0');
+                          const isExpired = parseFloat(pos.curPrice || '0') === 0;
+                          
+                          return (
+                            <tr key={idx} className="border-b border-gray-200/30 hover:bg-white/20 transition-colors">
+                              <td className="py-3 px-3 text-right text-gray-800">${formatValue(size)}</td>
+                              <td className="py-3 px-3 text-right text-gray-800">${formatValue(initialValue)}</td>
+                              <td className="py-3 px-3 text-right text-gray-800">
+                                ${formatValue(currentValue)}
+                                {isExpired && (
+                                  <span className="ml-1 text-xs text-red-500 font-normal">(Expired)</span>
+                                )}
+                              </td>
+                              <td className={`py-3 px-3 text-right font-semibold ${
+                                pnl >= 0 ? 'text-green-600' : 'text-red-600'
+                              }`}>
+                                ${formatValue(pnl)}
+                              </td>
+                              <td className={`py-3 px-3 text-right font-semibold ${
+                                percentPnl >= 0 ? 'text-green-600' : 'text-red-600'
+                              }`}>
+                                {percentPnl >= 0 ? '+' : ''}{percentPnl.toFixed(1)}%
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               )}
-                        </div>
-                      </div>
-                    )}
+            </div>
+          </div>
+        )}
 
         {/* FXRPool Section */}
         <div className="mt-8 p-6 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 rounded-2xl border border-blue-300/30 backdrop-blur-sm">
