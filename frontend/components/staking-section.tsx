@@ -476,7 +476,7 @@ export function StakingSection() {
 
   return (
     <div className="max-w-7xl mx-auto">
-      <div className="bg-white/10 backdrop-blur-xl rounded-2xl shadow-2xl p-8 border border-white/20">
+      <div className="bg-white/10 backdrop-blur-xl rounded-2xl shadow-2xl p-8 md:p-12 border border-white/20">
         {/* Pool Error Display */}
         {poolError && (
           <div className="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-lg">
@@ -485,49 +485,70 @@ export function StakingSection() {
         )}
 
         {/* Main Pool Display */}
-        <div className="text-center py-12">
+        <div className="text-center py-8 md:py-12">
           {/* Title */}
-          <h1 className="text-5xl font-bold text-zinc-900 mb-8 drop-shadow-lg">
+          <h1 className="text-5xl md:text-6xl font-bold text-zinc-900 mb-6 drop-shadow-lg">
             FXRPool
           </h1>
 
+          {/* Pool Details */}
+          {poolInfo && (
+            <div className="mb-10 max-w-2xl mx-auto text-center">
+              <h3 className="text-xl font-semibold text-zinc-900 mb-5">Pool Details</h3>
+              <div className="space-y-4 text-sm">
+                <div className="pb-3 border-b border-white/20">
+                  <p className="text-zinc-600 mb-2 font-medium">Pool Address</p>
+                  <p className="text-zinc-900 font-mono text-xs break-all px-2">
+                    {poolInfo.poolAddress}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-zinc-600 mb-2 font-medium">FXRP Token Address</p>
+                  <p className="text-zinc-900 font-mono text-xs break-all px-2">
+                    {poolInfo.fxrpAddress}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Pool Value */}
           {poolInfo ? (
-            <div className="mb-4">
-              <p className="text-7xl font-bold text-zinc-900 drop-shadow-lg">
+            <div className="mb-6">
+              <p className="text-7xl md:text-8xl font-bold text-zinc-900 drop-shadow-lg">
                 {ethers.formatUnits(poolInfo.poolBalance, poolInfo.decimals)}
               </p>
-              <p className="text-2xl text-zinc-700 mt-2">FXRP</p>
+              <p className="text-2xl md:text-3xl text-zinc-700 mt-3 font-medium">FXRP</p>
             </div>
           ) : isLoadingPool ? (
-            <div className="mb-4">
+            <div className="mb-6">
               <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-zinc-800 mx-auto mb-4"></div>
               <p className="text-xl text-zinc-600">Loading pool balance...</p>
             </div>
           ) : (
-            <div className="mb-4">
-              <p className="text-7xl font-bold text-zinc-400 drop-shadow-lg">--</p>
-              <p className="text-2xl text-zinc-500 mt-2">FXRP</p>
+            <div className="mb-6">
+              <p className="text-7xl md:text-8xl font-bold text-zinc-400 drop-shadow-lg">--</p>
+              <p className="text-2xl md:text-3xl text-zinc-500 mt-3">FXRP</p>
             </div>
           )}
 
           {/* APY Message */}
-          <p className="text-base text-zinc-600 mt-6">
+          <p className="text-base md:text-lg text-zinc-600 mt-8 max-w-2xl mx-auto leading-relaxed">
             Get 5-7+% APY by staking your FXRP to help top performing prediction market users make more money
           </p>
 
           {/* Stake and Withdraw Buttons */}
-          <div className="mt-8">
-            <div className="flex flex-col justify-center items-center gap-3">
+          <div className="mt-10">
+            <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
               <button
                 onClick={() => setShowDepositInput(true)}
-                className="px-10 py-4 bg-emerald-600 text-white rounded-lg text-base font-semibold hover:bg-emerald-700 transition-all"
+                className="w-full sm:w-auto px-8 py-3.5 bg-emerald-600 text-white rounded-xl text-base font-semibold hover:bg-emerald-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
               >
                 Stake FXRP
               </button>
               <button
                 onClick={() => setShowWithdrawInput(true)}
-                className="px-5 py-3 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition-all"
+                className="w-full sm:w-auto px-8 py-3.5 bg-red-600 text-white rounded-xl text-base font-semibold hover:bg-red-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
               >
                 Withdraw FXRP
               </button>
@@ -552,7 +573,7 @@ export function StakingSection() {
                   <button
                     onClick={handleDeposit}
                     disabled={actionLoading === 'deposit'}
-                    className="flex-1 px-3 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                   >
                     {actionLoading === 'deposit' ? 'Depositing...' : 'Confirm Deposit'}
                   </button>
@@ -561,7 +582,7 @@ export function StakingSection() {
                       setShowDepositInput(false);
                       setDepositAmount('');
                     }}
-                    className="flex-1 px-3 py-2 bg-zinc-200 text-zinc-800 rounded-lg text-sm font-medium hover:bg-zinc-300 transition-all"
+                    className="flex-1 px-4 py-2 bg-zinc-200 text-zinc-800 rounded-lg text-sm font-medium hover:bg-zinc-300 transition-all"
                   >
                     Cancel
                   </button>
@@ -591,7 +612,7 @@ export function StakingSection() {
                   <button
                     onClick={handleWithdraw}
                     disabled={actionLoading === 'withdraw'}
-                    className="flex-1 px-3 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                   >
                     {actionLoading === 'withdraw' ? 'Withdrawing...' : 'Confirm Withdraw'}
                   </button>
@@ -600,7 +621,7 @@ export function StakingSection() {
                       setShowWithdrawInput(false);
                       setWithdrawAmount('');
                     }}
-                    className="flex-1 px-3 py-2 bg-zinc-200 text-zinc-800 rounded-lg text-sm font-medium hover:bg-zinc-300 transition-all"
+                    className="flex-1 px-4 py-2 bg-zinc-200 text-zinc-800 rounded-lg text-sm font-medium hover:bg-zinc-300 transition-all"
                   >
                     Cancel
                   </button>
@@ -623,39 +644,15 @@ export function StakingSection() {
           </div>
         )}
 
-        {/* Additional Pool Details (Collapsible or Secondary Info) */}
-        {poolInfo && (
+        {/* Your Stake Section */}
+        {poolInfo && wallets.length > 0 && poolInfo.userBalance && BigInt(poolInfo.userBalance) > BigInt(0) && (
           <div className="mt-12 pt-8 border-t border-white/20">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Your Stake */}
-              {wallets.length > 0 && poolInfo.userBalance && BigInt(poolInfo.userBalance) > BigInt(0) && (
-                <div className="bg-white/10 backdrop-blur-md rounded-xl border border-white/20 p-6">
-                  <h3 className="text-lg font-semibold text-zinc-900 mb-4">Your Stake</h3>
-                  <p className="text-3xl font-bold text-zinc-900">
-                    {ethers.formatUnits(poolInfo.userBalance, poolInfo.decimals)}
-                  </p>
-                  <p className="text-sm text-zinc-500 mt-1">FXRP</p>
-                </div>
-              )}
-
-              {/* Pool Details */}
-              <div className="bg-white/10 backdrop-blur-md rounded-xl border border-white/20 p-6">
-                <h3 className="text-lg font-semibold text-zinc-900 mb-4">Pool Details</h3>
-                <div className="space-y-2 text-sm">
-                  <div>
-                    <p className="text-zinc-600 mb-1">Pool Address</p>
-                    <p className="text-zinc-900 font-mono text-xs break-all">
-                      {poolInfo.poolAddress}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-zinc-600 mb-1">FXRP Token Address</p>
-                    <p className="text-zinc-900 font-mono text-xs break-all">
-                      {poolInfo.fxrpAddress}
-                    </p>
-                  </div>
-                </div>
-              </div>
+            <div className="max-w-md mx-auto text-center">
+              <h3 className="text-xl font-semibold text-zinc-900 mb-4">Your Stake</h3>
+              <p className="text-4xl font-bold text-zinc-900">
+                {ethers.formatUnits(poolInfo.userBalance, poolInfo.decimals)}
+              </p>
+              <p className="text-lg text-zinc-600 mt-2 font-medium">FXRP</p>
             </div>
           </div>
         )}
