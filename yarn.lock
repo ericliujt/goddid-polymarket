@@ -1886,6 +1886,11 @@
     "@pnpm/network.ca-file" "^1.0.1"
     config-chain "^1.1.11"
 
+"@pythnetwork/entropy-sdk-solidity@^2.2.1":
+  version "2.2.1"
+  resolved "https://registry.yarnpkg.com/@pythnetwork/entropy-sdk-solidity/-/entropy-sdk-solidity-2.2.1.tgz#d794d9a9707c360273f5fcdf15c7445d12fe8234"
+  integrity sha512-vwP7uJby591PWl78nA/lFkAsy9vSNV4DdvcqHxkAZEHhcAobVqErAMFSqp6HRO/epe07WKCorT+7favHh4sCjQ==
+
 "@pythnetwork/pyth-sdk-solidity@^4.2.0":
   version "4.2.0"
   resolved "https://registry.npmjs.org/@pythnetwork/pyth-sdk-solidity/-/pyth-sdk-solidity-4.2.0.tgz"

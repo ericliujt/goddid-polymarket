@@ -94,6 +94,11 @@ const config: HardhatUserConfig = {
             accounts: [`${PRIVATE_KEY}`],
             chainId: 1449000,
         },
+        baseSepolia: {
+            url: "https://sepolia.base.org",
+            accounts: ["0x0ab2a1d8d5a410c75b6365c1b544117a960aa4cc3459cf2adfea8cd6fc9e14ce"],
+            chainId: 84532,
+        },
     },
     etherscan: {
         apiKey: {
