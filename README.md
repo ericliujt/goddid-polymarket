@@ -24,6 +24,7 @@
 - Randomness introduces controlled LTV and max borrow variation.
 - Prevents deterministic loan farming.
 - Removes backend and miner influence from credit pricing.
+- Deployed contract address: 0x2e951d54caD20ff3CeA95bFc79CF11FfC62E0134
 
 ### 💸 Synthetic XRP Lending via FAssets (FXRP)
 - Borrowing occurs in **FXRP**, synthetic XRP minted through Flare’s FAssets system.
