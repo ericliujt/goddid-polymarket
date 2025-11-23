@@ -104,10 +104,6 @@ npx hardhat run scripts/polymarket/PolymarketPosition.ts --network coston2
 npx hardhat run scripts/creditEngine/submitPolymarketData.ts --network coston2  
 npx hardhat run scripts/creditEngine/runCreditScore.ts --network coston2
 
-### FXRP and FAssets Ops
-npx hardhat run scripts/fassets/getFXRP.ts --network coston2  
-npx hardhat run scripts/fassets/swapAndRedeem.ts --network coston2
-
 ## 🤝 Why Flare
 Flare provided verifiable Web2 ingestion through FDC and the synthetic XRP system through FAssets and FXRP, letting the protocol operate entirely on chain with real Polymarket data.
 
