@@ -73,7 +73,8 @@
         "ethers": "^6.4.0",
         "hardhat": "^2.22.18",
         "solady": "^0.1.26",
-        "solhint": "^4.5.2"
+        "solhint": "^4.5.2",
+        "xrpl": "^4.4.3"
     },
     "prettier": "@flarenetwork/prettier-config-flare",
     "packageManager": "yarn@1.22.22"
