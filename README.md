@@ -73,56 +73,6 @@
 
 ---
 
-## 📂 Repository Structure
-
-GODDID-POLYMARKET
-├── contracts
-│ ├── creditscore
-│ │ └── CreditScore.sol
-│ ├── fassets
-│ │ ├── FAssetsAgentInfo.sol
-│ │ ├── FAssetsRedeem.sol
-│ │ ├── FAssetsSettings.sol
-│ │ ├── FXRPool.sol
-│ │ └── SwapAndRedeem.sol
-│ ├── polymarket
-│ │ ├── PolymarketPosition.sol
-│ │ └── PolymarketUserData.sol
-│ └── README.md
-│
-├── scripts
-│ ├── creditEngine
-│ │ ├── deployCreditScore.ts
-│ │ ├── submitPolymarketData.ts
-│ │ └── runCreditScore.ts
-│ ├── fassets
-│ │ ├── getFXRP.ts
-│ │ ├── mintingCap.ts
-│ │ ├── swapAndRedeem.ts
-│ │ └── redeem.ts
-│ ├── polymarket
-│ │ ├── PolymarketUserData.ts
-│ │ └── PolymarketPosition.ts
-│ └── utils
-│ ├── core.ts
-│ ├── fdc.ts
-│ └── getters.ts
-│
-├── frontend
-│ ├── app
-│ └── components
-│ ├── privy-provider.tsx
-│ ├── session-signers.tsx
-│ ├── lending-section.tsx
-│ ├── wallet-connection.tsx
-│ ├── demo-section.tsx
-│ └── withdraw.tsx
-│
-├── hardhat.config.ts
-├── package.json
-└── tsconfig.json
----**
-
 ## 🏎 Running the Project
 
 ### 1. Install Dependencies
