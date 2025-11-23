@@ -132,7 +132,7 @@ yarn
 # or
 npm install --force
 # Project Runbook & Architecture Notes
-
+```
 ## 2. Configure Environment
 cp .env.example .env  
 Add PRIVATE_KEY, XRPL details, Privy keys
