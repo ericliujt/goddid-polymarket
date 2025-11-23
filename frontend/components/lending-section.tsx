@@ -13,6 +13,10 @@ const SUPPORTED_CHAIN_IDS = [COSTON2_CHAIN_ID, FLARE_MAINNET_CHAIN_ID];
 // Credit Score Contract Address on Base Sepolia
 const CREDIT_SCORE_CONTRACT_ADDRESS = '0x18D4EE2813d4eb63cC89DC82A8bFe30B482944ed';
 
+// FXRPool Contract Address on Coston2
+// Note: Set NEXT_PUBLIC_FXRP_POOL_ADDRESS in your .env.local file
+const FXRP_POOL_ADDRESS = process.env.NEXT_PUBLIC_FXRP_POOL_ADDRESS || '0x30d9B6F5d78692eE2ebDd57a3EF534D6A8EAefc2';
+
 interface LogEntry {
   message: string;
   link?: string;
@@ -59,6 +63,11 @@ export function LendingSection() {
   const [isCalculatingScore, setIsCalculatingScore] = useState(false);
   const [baseScore, setBaseScore] = useState<number | null>(null);
   const [scoreTimestamp, setScoreTimestamp] = useState<string | null>(null);
+  const [poolInfo, setPoolInfo] = useState<any>(null);
+  const [lendingCapacity, setLendingCapacity] = useState<number>(0);
+  const [lendingAmount, setLendingAmount] = useState<string>('');
+  const [isLending, setIsLending] = useState(false);
+  const [isLoadingPoolInfo, setIsLoadingPoolInfo] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
 
@@ -163,11 +172,11 @@ export function LendingSection() {
       return;
     }
 
-    const browserWallets = wallets.filter(w => w.walletClientType !== 'privy');
-    if (browserWallets.length === 0) {
+      const browserWallets = wallets.filter(w => w.walletClientType !== 'privy');
+      if (browserWallets.length === 0) {
       alert('Please use a browser wallet (like MetaMask) to switch networks');
-      return;
-    }
+        return;
+      }
 
     setIsSwitchingNetwork(true);
     try {
@@ -244,7 +253,7 @@ export function LendingSection() {
     
     // Auto-scroll to bottom
     setTimeout(() => {
-      logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, 100);
   };
 
@@ -519,6 +528,157 @@ export function LendingSection() {
     }
   }
 
+  // Calculate lending capacity based on credit score and pool balance
+  useEffect(() => {
+    if (creditScore && poolInfo) {
+      // Parse the pool balance - check if it's in the right format
+      let poolBalance = parseFloat(poolInfo.poolBalanceFormatted || '0');
+      
+      // If the balance seems too small (less than 1), it might be a decimal issue
+      // FXRP typically has 6 decimals, but the display might be wrong
+      if (poolBalance < 1 && poolInfo.poolBalance) {
+        // Try to recalculate based on raw value
+        const rawBalance = BigInt(poolInfo.poolBalance);
+        // Assuming the issue is with decimal conversion, try 6 decimals
+        poolBalance = Number(rawBalance) / 1e6;
+      }
+      
+      // Lending capacity = (pool balance * 10%) * (credit score / 1000)
+      const maxLendingAmount = (poolBalance * 0.1) * (creditScore / 1000);
+      setLendingCapacity(maxLendingAmount);
+    }
+  }, [creditScore, poolInfo]);
+
+  // Fetch FXRPool info
+  async function fetchPoolInfo() {
+    setIsLoadingPoolInfo(true);
+    try {
+      const userAddress = wallets.length > 0 ? wallets[0].address : undefined;
+      const url = `/api/fxrpool?poolAddress=${FXRP_POOL_ADDRESS}${userAddress ? `&userAddress=${userAddress}` : ''}`;
+      
+      const response = await fetch(url);
+      const result = await response.json();
+      
+      if (result.success && result.data) {
+        setPoolInfo(result.data);
+        addLog(`Pool balance: ${result.data.poolBalanceFormatted} FXRP`, 'log');
+      } else {
+        addLog('Failed to fetch pool info', 'error');
+      }
+    } catch (error: any) {
+      console.error('Error fetching pool info:', error);
+      addLog(`Error: ${error.message || 'Failed to fetch pool info'}`, 'error');
+    } finally {
+      setIsLoadingPoolInfo(false);
+    }
+  }
+
+  // Handle lending from pool
+  async function handleLending() {
+    if (!lendingAmount || parseFloat(lendingAmount) <= 0) {
+      addLog('Please enter a valid lending amount', 'error');
+      return;
+    }
+    
+    if (!wallets.length) {
+      addLog('Please connect wallet first', 'error');
+      return;
+    }
+    
+    if (!creditScore) {
+      addLog('Please calculate your credit score first', 'error');
+      return;
+    }
+    
+    const requestedAmount = parseFloat(lendingAmount);
+    if (requestedAmount > lendingCapacity) {
+      addLog(`Amount exceeds your lending capacity of ${lendingCapacity.toFixed(2)} FXRP`, 'error');
+      return;
+    }
+    
+    setIsLending(true);
+    const startTime = Date.now();
+    
+    try {
+      const wallet = wallets[0];
+      const userAddress = wallet.address;
+      
+      addLog(`🚀 Processing lending request for ${lendingAmount} FXRP...`, 'log');
+      
+      const response = await fetch('/api/fxrpool', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          poolAddress: FXRP_POOL_ADDRESS,
+          recipientAddress: userAddress,
+          amount: lendingAmount,
+          creditScore: creditScore
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to process lending');
+      }
+      
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      
+      if (!reader) {
+        throw new Error('No response body');
+      }
+      
+      let buffer = '';
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const dataStr = line.replace('data: ', '').trim();
+            if (!dataStr) continue;
+            
+            try {
+              const event = JSON.parse(dataStr);
+              
+              if (event.type === 'log' && event.message) {
+                addLog(event.message, 'log');
+              } else if (event.type === 'error') {
+                addLog(event.message || 'An error occurred', 'error');
+              } else if (event.type === 'result') {
+                if (event.success) {
+                  addLog('✅ Lending completed successfully!', 'log');
+                  setLendingAmount('');
+                  // Refresh pool info
+                  await fetchPoolInfo();
+                } else {
+                  addLog(event.message || 'Lending failed', 'error');
+                }
+              } else if (event.type === 'close') {
+                break;
+              }
+            } catch (error) {
+              console.error('Failed to parse event:', error);
+            }
+          }
+        }
+      }
+    } catch (error: any) {
+      console.error('Error processing lending:', error);
+      addLog(`Error: ${error.message || 'Failed to process lending'}`, 'error');
+    } finally {
+      setIsLending(false);
+      const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
+      addLog(`⏱️ Total time: ${totalTime} seconds`, 'log');
+    }
+  }
+
   // Check existing credit score
   async function handleCheckExistingScore() {
     if (!wallets.length) {
@@ -615,17 +775,17 @@ export function LendingSection() {
                     data.closedPositions?.reduce((sum, pos) => 
                       sum + parseFloat(pos.realizedPnl), 0
                     )
-                  )}
-                </div>
+                    )}
+                  </div>
               </div>
               
               <div className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 p-4 rounded-xl border border-purple-300/30 backdrop-blur-sm">
                 <div className="text-sm text-zinc-700 mb-1">Active Positions</div>
                 <div className="text-2xl font-bold text-zinc-900">
                   {data.currentPositions?.length || 0}
-                </div>
               </div>
-              
+            </div>
+
               <div className="bg-gradient-to-br from-orange-500/20 to-red-500/20 p-4 rounded-xl border border-orange-300/30 backdrop-blur-sm">
                 <div className="text-sm text-zinc-700 mb-1">Current P&L</div>
                 <div className={`text-2xl font-bold ${
@@ -702,8 +862,8 @@ export function LendingSection() {
                             </span>
                             </div>
                         </div>
-                      </div>
-                    ))}
+                            </div>
+                          ))}
                     {data.closedPositions.length > 5 && (
                       <div className="text-center text-sm text-gray-500 pt-2">
                         +{data.closedPositions.length - 5} more positions
@@ -712,9 +872,168 @@ export function LendingSection() {
                   </div>
                 </div>
               )}
+                        </div>
+                      </div>
+                    )}
+
+        {/* FXRPool Section */}
+        <div className="mt-8 p-6 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 rounded-2xl border border-blue-300/30 backdrop-blur-sm">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-2xl font-bold text-zinc-900">FXRPool Lending</h3>
+            <button
+              onClick={fetchPoolInfo}
+              disabled={isLoadingPoolInfo}
+              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                isLoadingPoolInfo
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:from-blue-600 hover:to-cyan-600'
+              }`}
+            >
+              {isLoadingPoolInfo ? 'Loading...' : 'Refresh Pool Info'}
+            </button>
+                            </div>
+          
+          {poolInfo && (
+            <div className="space-y-4">
+              {/* Pool Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-white/50 rounded-lg p-4 border border-gray-200/50">
+                  <div className="text-sm text-gray-600">Total Pool Balance</div>
+                  <div className="text-2xl font-bold text-zinc-900">
+                    {(() => {
+                      // Handle decimal conversion issue
+                      let balance = parseFloat(poolInfo.poolBalanceFormatted || '0');
+                      if (balance < 1 && poolInfo.poolBalance) {
+                        // Recalculate with 6 decimals if the formatted value seems wrong
+                        const rawBalance = BigInt(poolInfo.poolBalance);
+                        balance = Number(rawBalance) / 1e6;
+                      }
+                      return balance.toFixed(2);
+                    })()} FXRP
+                        </div>
+                </div>
+                
+                <div className="bg-white/50 rounded-lg p-4 border border-gray-200/50">
+                  <div className="text-sm text-gray-600">Your Lending Capacity</div>
+                  <div className="text-2xl font-bold text-green-600">
+                    {creditScore ? lendingCapacity.toFixed(2) : '---'} FXRP
+                  </div>
+                  {creditScore && (
+                    <div className="text-xs text-gray-500 mt-1">
+                      Based on {creditScore} credit score ({(creditScore/10).toFixed(1)}%)
+                      </div>
+                    )}
+                </div>
+                
+                <div className="bg-white/50 rounded-lg p-4 border border-gray-200/50">
+                  <div className="text-sm text-gray-600">Max Pool Lending</div>
+                  <div className="text-2xl font-bold text-zinc-900">
+                    {(() => {
+                      let balance = parseFloat(poolInfo.poolBalanceFormatted || '0');
+                      if (balance < 1 && poolInfo.poolBalance) {
+                        const rawBalance = BigInt(poolInfo.poolBalance);
+                        balance = Number(rawBalance) / 1e6;
+                      }
+                      return (balance * 0.1).toFixed(2);
+                    })()} FXRP
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">10% of pool</div>
+                </div>
+              </div>
+              
+              {/* Lending Interface */}
+              {creditScore && lendingCapacity > 0 && (
+                <div className="bg-white/50 rounded-lg p-6 border border-gray-200/50">
+                  <h4 className="text-lg font-semibold text-zinc-900 mb-4">Request Lending</h4>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Amount to Lend (FXRP)
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          value={lendingAmount}
+                          onChange={(e) => setLendingAmount(e.target.value)}
+                          max={lendingCapacity}
+                          min="0"
+                          step="0.01"
+                          placeholder={`Max: ${lendingCapacity.toFixed(2)}`}
+                          disabled={isLending}
+                          className="flex-1 px-4 py-2 rounded-lg border border-gray-300 bg-white/90
+                                   text-gray-900 placeholder-gray-500 focus:outline-none 
+                                   focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                                   disabled:bg-gray-100 disabled:text-gray-500"
+                        />
+                        <button
+                          onClick={() => setLendingAmount(lendingCapacity.toFixed(2))}
+                          disabled={isLending}
+                          className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all disabled:opacity-50"
+                        >
+                          Max
+                        </button>
+                      </div>
+                      {lendingAmount && parseFloat(lendingAmount) > lendingCapacity && (
+                        <p className="text-red-500 text-sm mt-1">
+                          Amount exceeds your lending capacity
+                      </p>
+                    )}
+                    </div>
+                    
+                    <div className="bg-blue-50 p-3 rounded-lg">
+                      <div className="text-sm text-gray-600">
+                        <div>• Credit Score: {creditScore} ({(creditScore/10).toFixed(1)}%)</div>
+                        <div>• Pool Balance: {(() => {
+                          let balance = parseFloat(poolInfo.poolBalanceFormatted || '0');
+                          if (balance < 1 && poolInfo.poolBalance) {
+                            const rawBalance = BigInt(poolInfo.poolBalance);
+                            balance = Number(rawBalance) / 1e6;
+                          }
+                          return balance.toFixed(2);
+                        })()} FXRP</div>
+                        <div>• Max Lending: (Pool × 10%) × Credit% = {lendingCapacity.toFixed(2)} FXRP</div>
+                      </div>
+                    </div>
+                    
+                    <button
+                      onClick={handleLending}
+                      disabled={!lendingAmount || isLending || parseFloat(lendingAmount) > lendingCapacity || parseFloat(lendingAmount) <= 0}
+                      className={`w-full py-3 rounded-xl font-semibold transition-all ${
+                        !lendingAmount || isLending || parseFloat(lendingAmount) > lendingCapacity || parseFloat(lendingAmount) <= 0
+                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                          : 'bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 shadow-lg hover:shadow-xl transform hover:scale-105'
+                      }`}
+                    >
+                      {isLending ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
+                          Processing Lending...
+                  </div>
+                ) : (
+                        `Lend ${lendingAmount || '0'} FXRP`
+                      )}
+                    </button>
+                  </div>
+                  </div>
+                )}
+              
+              {!creditScore && (
+                <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                  <p className="text-yellow-800">
+                    Please calculate your credit score first to see your lending capacity.
+                  </p>
+              </div>
+              )}
             </div>
-          </div>
-        )}
+          )}
+          
+          {!poolInfo && !isLoadingPoolInfo && (
+            <div className="text-center py-6">
+              <p className="text-gray-600 mb-4">Click "Refresh Pool Info" to load pool data</p>
+            </div>
+          )}
+        </div>
 
         {/* Credit Score Section */}
         <div className="mt-8 p-6 bg-gradient-to-br from-violet-500/10 to-purple-500/10 rounded-2xl border border-violet-300/30 backdrop-blur-sm">
@@ -735,8 +1054,8 @@ export function LendingSection() {
                           Base Score: {baseScore} (±50 with entropy)
                         </div>
                       )}
-                    </div>
-                  ) : (
+          </div>
+        ) : (
                     <div className="text-gray-400">
                       <div className="text-5xl mb-2">---</div>
                       <div className="text-sm">Calculate your credit score</div>
