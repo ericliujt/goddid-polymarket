@@ -92,19 +92,19 @@ open http://localhost:3000
 
 Start using our lending protocol!
 
-**Optional**
-## Compile Contracts
+## Optional
+### Compile Contracts
 npx hardhat compile
 
-## Run Polymarket Ingestion
+### Run Polymarket Ingestion
 npx hardhat run scripts/polymarket/PolymarketUserData.ts --network coston2  
 npx hardhat run scripts/polymarket/PolymarketPosition.ts --network coston2
 
-## Compute Credit Score
+### Compute Credit Score
 npx hardhat run scripts/creditEngine/submitPolymarketData.ts --network coston2  
 npx hardhat run scripts/creditEngine/runCreditScore.ts --network coston2
 
-## FXRP and FAssets Ops
+### FXRP and FAssets Ops
 npx hardhat run scripts/fassets/getFXRP.ts --network coston2  
 npx hardhat run scripts/fassets/swapAndRedeem.ts --network coston2
 
